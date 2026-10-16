@@ -100,6 +100,15 @@ def seed_demo_graph(
         """
         MATCH (pr2:PullRequest {number: 3900}), (f3:File {path: 'src/flask/views.py'}) CREATE (pr2)-[:TOUCHES {additions: 85, deletions: 5}]->(f3)
         """,
+        """
+        MATCH (p1:Person {login: 'davidism'}), (pr1:PullRequest {number: 3500}) CREATE (p1)-[:AUTHORED]->(pr1)
+        """,
+        """
+        MATCH (p4:Person {login: 'pgjones'}), (pr2:PullRequest {number: 3900}) CREATE (p4)-[:AUTHORED]->(pr2)
+        """,
+        """
+        MATCH (p1:Person {login: 'davidism'}), (pr3:PullRequest {number: 4400}) CREATE (p1)-[:AUTHORED]->(pr3)
+        """,
         # 9. Decision Connections: SUPPORTED_BY, MADE, DECIDED_IN, AFFECTS, SUPERSEDES
         """
         MATCH (d1:Decision {id: 'dec_drop_py2'}), (e1:Evidence {id: 'ev_drop_py2'}) CREATE (d1)-[:SUPPORTED_BY]->(e1)

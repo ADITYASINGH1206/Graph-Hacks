@@ -106,15 +106,52 @@ def extract(
 
 
 @app.command()
-def link() -> None:
+def link(
+    max_pairs: int = typer.Option(600, "--max-pairs", help="Maximum candidate pairs to evaluate"),
+    min_confidence: float = typer.Option(
+        0.6, "--min-confidence", help="Minimum confidence threshold"
+    ),
+) -> None:
     """Link extracted decisions (supersedes, reverses, depends_on, conflicts_with)."""
-    typer.echo("Linking decisions...")
+    from dig.extract.linker import DecisionLinker
+
+    typer.echo(
+        f"Linking decisions (max {max_pairs} candidate pairs, min confidence {min_confidence})..."
+    )
+    linker = DecisionLinker()
+
+    async def _run() -> None:
+        res = await linker.link_decisions(max_pairs=max_pairs, min_confidence=min_confidence)
+        typer.echo(f"Linking complete! Counts by relation type: {res['counts']}")
+        if res.get("chains"):
+            typer.echo("\n--- Sample Decision Chains ---")
+            for c in res["chains"][:5]:
+                typer.echo(
+                    f'* [{c["relation"].upper()}] "{c["newer"]}" ({c.get("newer_date")}) -> "{c["older"]}" ({c.get("older_date")}) [conf={c["confidence"]}]'
+                )
+
+    asyncio.run(_run())
 
 
 @app.command()
 def score() -> None:
     """Compute and write KNOWS expertise scores for (Person, Module)."""
-    typer.echo("Scoring module expertise...")
+    from dig.extract.expertise import compute_and_write_expertise
+
+    typer.echo("Computing and scoring module expertise with recency decay...")
+    res = compute_and_write_expertise()
+    typer.echo(f"Successfully wrote {res['knows_edges']} KNOWS edges.")
+
+    top_people = res.get("top_per_module", {})
+    if top_people:
+        typer.echo("\n--- Top Experts by Module ---")
+        for mod, people in top_people.items():
+            if people:
+                typer.echo(f"Module: {mod}")
+                for p in people:
+                    typer.echo(
+                        f"  * {p['login']:<15} score={p['score']:<5} (authored={p['authored']}, reviewed={p['reviewed']}, commented={p['commented']})"
+                    )
 
 
 @app.command()
