@@ -7,15 +7,19 @@ interface GraphCanvasProps {
   elements: GraphElements
   onNodeClick?: (nodeId: string) => void
   highlightedPath?: GraphElements | null
+  /** "accumulate" (default) only adds; "replace" makes the canvas show exactly `elements`. */
+  mode?: 'accumulate' | 'replace'
 }
 
 export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   elements,
   onNodeClick,
   highlightedPath,
+  mode = 'accumulate',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<Core | null>(null)
+  const layoutRef = useRef<{ stop: () => unknown } | null>(null)
   const onNodeClickRef = useRef(onNodeClick)
   useEffect(() => {
     onNodeClickRef.current = onNodeClick
@@ -31,15 +35,15 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           selector: 'node',
           style: {
             label: 'data(label)',
-            color: '#f1f5f9',
+            color: '#ede6d8',
             'font-size': '11px',
             'text-valign': 'bottom',
             'text-margin-y': 5,
-            'background-color': '#475569',
+            'background-color': '#4d4337',
             width: 32,
             height: 32,
             'border-width': 2,
-            'border-color': '#1e293b',
+            'border-color': '#2a241d',
           },
         },
         // Decision node status colors
@@ -76,7 +80,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         {
           selector: 'node[type = "Module"]',
           style: {
-            'background-color': '#64748b', // grey
+            'background-color': '#7d7263', // grey
             shape: 'hexagon',
           },
         },
@@ -84,7 +88,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         {
           selector: 'node[type = "Evidence"]',
           style: {
-            'background-color': '#0f172a',
+            'background-color': '#16130f',
             'border-color': '#a855f7',
             'border-width': 3,
             shape: 'ellipse',
@@ -97,16 +101,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           selector: 'edge',
           style: {
             width: 1.5,
-            'line-color': '#475569',
-            'target-arrow-color': '#475569',
+            'line-color': '#4d4337',
+            'target-arrow-color': '#4d4337',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
             label: 'data(label)',
             'font-size': '9px',
-            color: '#94a3b8',
+            color: '#a39887',
             'text-rotation': 'autorotate',
             'text-background-opacity': 0.8,
-            'text-background-color': '#0f172a',
+            'text-background-color': '#16130f',
             'text-background-padding': '2px',
           },
         },
@@ -115,24 +119,19 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           selector: 'edge.highlighted',
           style: {
             width: 3.5,
-            'line-color': '#38bdf8',
-            'target-arrow-color': '#38bdf8',
+            'line-color': '#e08a54',
+            'target-arrow-color': '#e08a54',
           },
         },
         {
           selector: 'node.highlighted',
           style: {
-            'border-color': '#38bdf8',
+            'border-color': '#e08a54',
             'border-width': 4,
           },
         },
       ],
-      layout: {
-        name: 'cose',
-        animate: true,
-        animationDuration: 500,
-        nodeDimensionsIncludeLabels: true,
-      },
+      maxZoom: 1.4,
       userZoomingEnabled: true,
       userPanningEnabled: true,
     })
@@ -145,7 +144,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     cyRef.current = cy
 
     return () => {
+      // Stop running layout animations first, or they fire on a destroyed instance.
+      layoutRef.current?.stop()
+      layoutRef.current = null
+      cy.stop()
       cy.destroy()
+      cyRef.current = null
     }
   }, [])
 
@@ -155,6 +159,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     if (!cy) return
 
     cy.batch(() => {
+      if (mode === 'replace') {
+        const keepNodes = new Set(elements.nodes.map((n) => n.id))
+        const keepEdges = new Set(elements.edges.map((e) => e.id))
+        cy.edges().forEach((e) => {
+          if (!keepEdges.has(e.id())) e.remove()
+        })
+        cy.nodes().forEach((n) => {
+          if (!keepNodes.has(n.id())) n.remove()
+        })
+      }
       // Add or update nodes
       const existingNodeIds = new Set(cy.nodes().map((n) => n.id()))
       for (const node of elements.nodes) {
@@ -170,6 +184,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
               status,
             },
           })
+        } else {
+          // Status can change between snapshots (active -> superseded).
+          cy.getElementById(node.id).data('status', status)
         }
       }
 
@@ -214,15 +231,19 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     })
 
     if (elements.nodes.length > 0) {
-      cy.layout({
+      layoutRef.current?.stop()
+      // Replace mode redraws often (slider drags); animated layouts would run on removed nodes.
+      const layout = cy.layout({
         name: 'cose',
-        animate: true,
+        animate: mode !== 'replace',
         animationDuration: 400,
         nodeDimensionsIncludeLabels: true,
-      }).run()
+      })
+      layoutRef.current = layout
+      layout.run()
       cy.fit(undefined, 40)
     }
-  }, [elements, highlightedPath])
+  }, [elements, highlightedPath, mode])
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -231,7 +252,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         style={{
           width: '100%',
           height: '100%',
-          backgroundColor: '#090d16',
+          backgroundColor: '#0e0c0a',
         }}
       />
       {/* Canvas overlay legend */}
@@ -240,13 +261,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           position: 'absolute',
           bottom: 12,
           left: 12,
-          backgroundColor: 'rgba(15, 23, 42, 0.85)',
+          backgroundColor: 'rgba(22, 19, 15, 0.88)',
           backdropFilter: 'blur(8px)',
           border: '1px solid #1e293b',
           borderRadius: 8,
           padding: '8px 12px',
           fontSize: '11px',
-          color: '#94a3b8',
+          color: '#a39887',
           display: 'flex',
           gap: 12,
           alignItems: 'center',
