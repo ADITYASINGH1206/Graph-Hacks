@@ -50,6 +50,10 @@ class DecisionAgent:
         if self._custom_client:
             return self._custom_client
         api_key = settings.gemini_api_key or ""
+        if not api_key:
+            from dig.agent.offline import OfflineModelSimulator
+
+            return OfflineModelSimulator()
         return genai.Client(api_key=api_key)
 
     def _build_tools_declaration(self) -> list[types.Tool]:

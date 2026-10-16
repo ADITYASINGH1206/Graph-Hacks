@@ -1,0 +1,75 @@
+# 12 Evaluation Questions across History, Ownership, Impact, Reversal, and Guard categories
+questions:
+  - id: q01
+    category: history
+    question: "Why was Python 3.6 dropped?"
+    expected_decisions: ["dec_drop_py36"]
+    description: "Verify that dropping Python 3.6 was due to upstream EOL in PR #4400."
+
+  - id: q02
+    category: history
+    question: "Why was Python 2 support dropped in Flask?"
+    expected_decisions: ["dec_drop_py2"]
+    description: "Verify that dropping Python 2 was part of Flask 1.0 modernization."
+
+  - id: q03
+    category: history
+    question: "Why were async views and route handlers adopted?"
+    expected_decisions: ["dec_async_views"]
+    description: "Verify asynchronous view functions introduction in Flask 2.0."
+
+  - id: q04
+    category: ownership
+    question: "Who is the primary maintainer and expert for flask/compat?"
+    expected_decisions: ["dec_drop_py36", "dec_drop_py2"]
+    expected_people: ["davidism", "ThiefMaster"]
+    description: "Verify identification of davidism as lead maintainer for compat module."
+
+  - id: q05
+    category: ownership
+    question: "Who decided to drop Python 3.6 support?"
+    expected_decisions: ["dec_drop_py36"]
+    expected_people: ["davidism"]
+    description: "Verify identifying davidism as author/decider of PR #4400."
+
+  - id: q06
+    category: ownership
+    question: "Who are the most central engineers in Flask decision history?"
+    expected_people: ["davidism", "ThiefMaster"]
+    description: "Verify PageRank centrality ranking places top maintainers first."
+
+  - id: q07
+    category: impact
+    question: "What modules and files were impacted by dropping Python 2?"
+    expected_decisions: ["dec_drop_py2"]
+    description: "Verify impact of dec_drop_py2 on flask/compat."
+
+  - id: q08
+    category: impact
+    question: "What downstream releases included the Python 3.6 drop?"
+    expected_decisions: ["dec_drop_py36"]
+    description: "Verify impact tracing to release tags."
+
+  - id: q09
+    category: reversal
+    question: "Has the Python 2 drop decision been superseded by a later decision?"
+    expected_decisions: ["dec_drop_py2", "dec_drop_py36"]
+    description: "Verify traversing SUPERSEDES chain from dec_drop_py36 back to dec_drop_py2."
+
+  - id: q10
+    category: reversal
+    question: "What is the decision lineage starting from the Python 3.6 deprecation?"
+    expected_decisions: ["dec_drop_py36", "dec_drop_py2"]
+    description: "Verify multi-hop lineage graph traversal."
+
+  - id: q11
+    category: guard
+    question: "Proposal: restore Python 3.6 compatibility helpers in src/flask/compat.py"
+    expected_decisions: ["dec_drop_py36"]
+    description: "Decision Guard should flag direct conflict with active deprecation."
+
+  - id: q12
+    category: guard
+    question: "Proposal: modify compatibility layer touching previously superseded decisions"
+    expected_decisions: ["dec_drop_py2"]
+    description: "Decision Guard should identify previously superseded/reversed history."
