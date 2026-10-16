@@ -69,7 +69,12 @@ class GitHubClient:
                     await asyncio.sleep(60.0)
                     continue
 
-            if response.status_code == 404:
+            if response.status_code in (404, 422):
+                logger.info(
+                    "HTTP %s for %s - ending pagination or resource not found.",
+                    response.status_code,
+                    endpoint,
+                )
                 return None
 
             response.raise_for_status()

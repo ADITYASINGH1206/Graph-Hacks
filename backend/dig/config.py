@@ -14,13 +14,21 @@ class Settings(BaseSettings):
     )
 
     github_token: str = Field(default="", alias="GITHUB_TOKEN")
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
-    agent_model: str = Field(default="claude-sonnet-5-5", alias="AGENT_MODEL")
-    extract_model: str = Field(default="claude-haiku-5-5", alias="EXTRACT_MODEL")
+    agent_model: str = Field(default="gemini-2.5-pro", alias="AGENT_MODEL")
+    extract_model: str = Field(default="gemini-2.5-flash", alias="EXTRACT_MODEL")
     falkordb_host: str = Field(default="localhost", alias="FALKORDB_HOST")
     falkordb_port: int = Field(default=6379, alias="FALKORDB_PORT")
     target_repo: str = Field(default="pallets/flask", alias="TARGET_REPO")
     module_depth: int = Field(default=2, alias="MODULE_DEPTH")
+
+    @property
+    def google_api_key(self) -> str:
+        """Resolve Gemini / Google API key from GEMINI_API_KEY or GOOGLE_API_KEY."""
+        import os
+
+        return self.gemini_api_key or os.environ.get("GOOGLE_API_KEY", "")
 
     @property
     def graph_name(self) -> str:
