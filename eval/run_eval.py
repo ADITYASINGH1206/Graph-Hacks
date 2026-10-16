@@ -124,7 +124,9 @@ async def main() -> None:
         print(f"[{q['id']}] ({q['category']}) {q['question']}")
         res = await evaluate_question(q)
         results.append(res)
-        print(f"     -> Expected Hit: {res['hit_expected']} | Validity: {_pct(res['citation_validity'])} | Latency: {res['latency_ms']}ms\n")
+        print(
+            f"     -> Expected Hit: {res['hit_expected']} | Validity: {_pct(res['citation_validity'])} | Latency: {res['latency_ms']}ms\n"
+        )
 
     mode = (
         f"live model (`{settings.agent_model}`)"

@@ -8,7 +8,9 @@ from pydantic import BaseModel, Field, StringConstraints
 
 # Bounded inputs: these strings reach the LLM and per-user graph names.
 Question = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
-Description = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+Description = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)
+]
 PathStr = Annotated[str, StringConstraints(max_length=300)]
 UserId = Annotated[
     str, StringConstraints(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.@:-]+$")

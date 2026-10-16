@@ -24,7 +24,9 @@ def test_path_to_module_mapping():
 
 def test_decision_guard_detects_conflict():
     """Test Decision Guard identifying conflict with an active decision."""
-    proposal = "We should restore and re-add Python 3.6 compatibility helpers to avoid breaking old users."
+    proposal = (
+        "We should restore and re-add Python 3.6 compatibility helpers to avoid breaking old users."
+    )
     paths = ["src/flask/compat.py"]
 
     res = run_decision_guard(description=proposal, paths=paths)
@@ -86,6 +88,8 @@ def test_memory_graph_lifecycle():
     assert "Python 3.6 reached EOL" in recalled[0]["summary"]
 
     # 3. Pin decision
-    pin_res = pin_decision(user_id=user_id, decision_id="dec_drop_py36", note="Must verify EOL status")
+    pin_res = pin_decision(
+        user_id=user_id, decision_id="dec_drop_py36", note="Must verify EOL status"
+    )
     assert pin_res["status"] == "pinned"
     assert pin_res["decision_id"] == "dec_drop_py36"

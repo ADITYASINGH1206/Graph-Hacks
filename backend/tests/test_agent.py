@@ -118,17 +118,13 @@ async def test_agent_tool_loop_and_repair_turn(seeded_graph):
     # Create mock response 2: Text answer with bad marker
     resp2 = MagicMock()
     text_part_bad = types.Part()
-    text_part_bad.text = (
-        "Flask dropped Python 3.6 support in version 2.0 [[ev:fake_404]]."
-    )
+    text_part_bad.text = "Flask dropped Python 3.6 support in version 2.0 [[ev:fake_404]]."
     resp2.candidates = [types.Candidate(content=types.Content(parts=[text_part_bad]))]
 
     # Create mock response 3: Repaired text answer citing real evidence from tool
     resp3 = MagicMock()
     text_part_repaired = types.Part()
-    text_part_repaired.text = (
-        "Flask dropped Python 3.6 support in PR #4400 [[ev:ev_drop_py36]]."
-    )
+    text_part_repaired.text = "Flask dropped Python 3.6 support in PR #4400 [[ev:ev_drop_py36]]."
     resp3.candidates = [types.Candidate(content=types.Content(parts=[text_part_repaired]))]
 
     mock_client.models.generate_content.side_effect = [resp1, resp2, resp3]

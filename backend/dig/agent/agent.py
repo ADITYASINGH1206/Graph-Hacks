@@ -107,6 +107,7 @@ class DecisionAgent:
         # Check cross-session memory for relevant past findings
         try:
             from dig.agent.memory import recall_findings
+
             past_findings = recall_findings(user_id=user_id, topic=question, limit=3)
             if past_findings:
                 yield AgentEvent(event="recall", data={"findings": past_findings})
@@ -160,13 +161,17 @@ class DecisionAgent:
             except Exception as exc:
                 logger.error("LLM call failed on round %d: %s", round_num, exc)
                 yield AgentEvent(event="error", data={"message": f"LLM generation failed: {exc}"})
-                yield AgentEvent(event="done", data={"session_id": session_id, "tool_rounds": round_num})
+                yield AgentEvent(
+                    event="done", data={"session_id": session_id, "tool_rounds": round_num}
+                )
                 return
 
             candidate = response.candidates[0] if response and response.candidates else None
             if not candidate or not candidate.content or not candidate.content.parts:
                 yield AgentEvent(event="error", data={"message": "Empty response from LLM"})
-                yield AgentEvent(event="done", data={"session_id": session_id, "tool_rounds": round_num})
+                yield AgentEvent(
+                    event="done", data={"session_id": session_id, "tool_rounds": round_num}
+                )
                 return
 
             parts = candidate.content.parts
@@ -248,7 +253,9 @@ class DecisionAgent:
             yield AgentEvent(event="token", data={"text": answer_text})
 
             # Verification turn
-            evidence_map = collect_evidence_from_tool_results(tool_results_history, graph=self.graph)
+            evidence_map = collect_evidence_from_tool_results(
+                tool_results_history, graph=self.graph
+            )
             known_ids = set(evidence_map.keys())
             check = check_citations(answer_text, known_ids)
 
@@ -305,6 +312,7 @@ class DecisionAgent:
             # Record finding to user memory
             try:
                 from dig.agent.memory import record_finding
+
                 dec_ids = [c.decision_id for c in citations if c.decision_id]
                 first_two_sentences = " ".join(final_md.split(".")[:2]).strip()
                 record_finding(
@@ -330,7 +338,9 @@ class DecisionAgent:
         # Max rounds reached without text completion
         yield AgentEvent(
             event="error",
-            data={"message": f"Agent reached maximum tool rounds ({self.max_rounds}) without finishing."},
+            data={
+                "message": f"Agent reached maximum tool rounds ({self.max_rounds}) without finishing."
+            },
         )
         yield AgentEvent(
             event="done",

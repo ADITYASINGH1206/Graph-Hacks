@@ -54,7 +54,9 @@ async def run_incremental_sync(repo: str | None = None) -> dict[str, Any]:
             qualifying = filter_threads(threads, threshold=2)
             if qualifying:
                 extractor = DecisionExtractor()
-                decisions, stats = await extractor.extract_and_verify_all([t for t, _ in qualifying])
+                decisions, stats = await extractor.extract_and_verify_all(
+                    [t for t, _ in qualifying]
+                )
                 decisions_added = len(decisions)
                 if decisions:
                     load_decisions(decisions=decisions, repo=target_repo)

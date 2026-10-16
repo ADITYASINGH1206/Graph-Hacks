@@ -207,7 +207,7 @@ def ask(
                 if citations:
                     for c in citations:
                         typer.echo(
-                            f"  [{c['n']}] \"{c['quote']}\"\n      Author: {c['author']} | URL: {c['url']}"
+                            f'  [{c["n"]}] "{c["quote"]}"\n      Author: {c["author"]} | URL: {c["url"]}'
                         )
                 else:
                     typer.echo("  (No direct citations)")

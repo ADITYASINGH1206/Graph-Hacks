@@ -134,7 +134,9 @@ def list_decisions(
     q: str | None = Query(None, description="Search query string"),
     module: str | None = Query(None, description="Filter by module"),
     status: str | None = Query(None, description="Filter by status (active/superseded/reversed)"),
-    type: str | None = Query(None, description="Filter by type (architectural/deprecation/api_design/refactor)"),
+    type: str | None = Query(
+        None, description="Filter by type (architectural/deprecation/api_design/refactor)"
+    ),
     limit: int = Query(50, ge=1, le=200),
 ) -> DecisionsListResponse:
     """List decisions for the timeline with optional filtering."""
@@ -203,7 +205,9 @@ def get_decision_detail(decision_id: str) -> DecisionDetailResponse:
 
 @app.get("/subgraph", response_model=GraphElements)
 def get_subgraph(
-    center: str = Query(..., description="Center node UID (e.g. Decision:dec_123, Person:davidism)"),
+    center: str = Query(
+        ..., description="Center node UID (e.g. Decision:dec_123, Person:davidism)"
+    ),
     depth: int = Query(1, ge=1, le=2),
     limit: int = Query(80, ge=1, le=200),
 ) -> GraphElements:
@@ -287,7 +291,9 @@ def get_person_detail(login: str) -> PersonDetailResponse:
     decisions = []
     if res_decs.result_set:
         for row in res_decs.result_set:
-            decisions.append(PersonDecisionItem(id=row[0], title=row[1], role=row[2] or "maintainer"))
+            decisions.append(
+                PersonDecisionItem(id=row[0], title=row[1], role=row[2] or "maintainer")
+            )
 
     return PersonDetailResponse(
         login=login,

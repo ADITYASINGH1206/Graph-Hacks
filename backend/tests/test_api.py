@@ -118,9 +118,21 @@ def test_guard_baseline():
 
 def test_ask_sse_stream_events():
     """Test POST /ask SSE streaming event sequence."""
+
     async def mock_events(*args, **kwargs):
-        yield AgentEvent(event="tool_call", data={"id": "call_1", "name": "search_decisions", "input": {"query": "test"}})
-        yield AgentEvent(event="tool_result", data={"id": "call_1", "name": "search_decisions", "summary": "Found 1", "graph_elements": {"nodes": [], "edges": []}})
+        yield AgentEvent(
+            event="tool_call",
+            data={"id": "call_1", "name": "search_decisions", "input": {"query": "test"}},
+        )
+        yield AgentEvent(
+            event="tool_result",
+            data={
+                "id": "call_1",
+                "name": "search_decisions",
+                "summary": "Found 1",
+                "graph_elements": {"nodes": [], "edges": []},
+            },
+        )
         yield AgentEvent(event="token", data={"text": "Here is the answer"})
         yield AgentEvent(
             event="answer",
