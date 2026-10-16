@@ -78,6 +78,17 @@ class DecisionAgent:
 
         system_prompt = get_system_prompt(repo=self.repo)
 
+        # Check cross-session memory for relevant past findings
+        try:
+            from dig.agent.memory import recall_findings
+            past_findings = recall_findings(user_id=user_id, topic=question, limit=3)
+            if past_findings:
+                yield AgentEvent(event="recall", data={"findings": past_findings})
+                past_context = "\n".join(f"- {f['summary']}" for f in past_findings)
+                system_prompt += f"\n\nEarlier in this user's sessions:\n{past_context}\n"
+        except Exception as mem_err:
+            logger.debug("Memory recall skipped: %s", mem_err)
+
         # In mock or testing mode if no API key is configured and no client passed
         client = None
         try:
@@ -263,6 +274,22 @@ class DecisionAgent:
                     "verification": verification.model_dump(),
                 },
             )
+
+            # Record finding to user memory
+            try:
+                from dig.agent.memory import record_finding
+                dec_ids = [c.decision_id for c in citations if c.decision_id]
+                first_two_sentences = " ".join(final_md.split(".")[:2]).strip()
+                record_finding(
+                    user_id=user_id,
+                    session_id=session_id,
+                    question_text=question,
+                    summary=first_two_sentences or final_md[:120],
+                    decision_ids=dec_ids,
+                )
+            except Exception as rec_err:
+                logger.debug("Could not record finding: %s", rec_err)
+
             yield AgentEvent(
                 event="done",
                 data={"session_id": session_id, "tool_rounds": round_num},

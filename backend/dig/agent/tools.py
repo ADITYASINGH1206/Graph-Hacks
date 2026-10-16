@@ -325,3 +325,9 @@ def tool_recent_changes(
         "graph_elements": elements.model_dump(),
         "summary": f"Found {len(items)} decisions since {since}.",
     }
+
+
+# Automatically load extended tool modules so their @registry.register decorators run
+import dig.agent.adr  # noqa: E402, F401
+import dig.agent.guard  # noqa: E402, F401
+import dig.agent.memory  # noqa: E402, F401

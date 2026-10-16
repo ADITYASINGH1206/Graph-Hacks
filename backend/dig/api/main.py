@@ -109,12 +109,14 @@ async def ask_endpoint(payload: AskRequest):
 @app.post("/guard", response_model=GuardResponse)
 def guard_endpoint(payload: GuardRequest) -> GuardResponse:
     """Check a proposed change against past decisions (Decision Guard)."""
-    # Baseline guard implementation returning graph context; enhanced in P10
+    from dig.agent.guard import run_decision_guard
+
+    res = run_decision_guard(description=payload.description, paths=payload.paths)
     return GuardResponse(
-        conflicts=[],
-        alignments=[],
-        reversed_before=[],
-        graph=GraphElements(),
+        conflicts=res.get("conflicts", []),
+        alignments=res.get("alignments", []),
+        reversed_before=res.get("reversed_before", []),
+        graph=GraphElements(**res.get("graph", {})),
     )
 
 
@@ -241,7 +243,11 @@ def get_subgraph(
 @app.post("/sync", response_model=SyncResponse)
 def trigger_sync(background_tasks: BackgroundTasks) -> SyncResponse:
     """Trigger incremental repository sync in the background."""
-    # Placeholder for P10 sync task runner
+    import asyncio
+
+    from dig.sync import run_incremental_sync
+
+    background_tasks.add_task(asyncio.run, run_incremental_sync())
     return SyncResponse(started=True)
 
 

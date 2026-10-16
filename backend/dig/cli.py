@@ -155,9 +155,22 @@ def score() -> None:
 
 
 @app.command()
-def sync() -> None:
+def sync(
+    repo: str | None = typer.Option(None, "--repo", help="Target repository"),
+) -> None:
     """Run incremental sync for newly updated threads and decisions."""
-    typer.echo("Running incremental sync...")
+    from dig.sync import run_incremental_sync
+
+    typer.echo("Running incremental sync with GitHub...")
+
+    async def _run():
+        res = await run_incremental_sync(repo=repo)
+        typer.echo(
+            f"Sync complete! Threads updated: {res['threads_updated']}, Decisions added: {res['decisions_added']}"
+        )
+        typer.echo(f"Last synced timestamp: {res['last_synced']}")
+
+    asyncio.run(_run())
 
 
 @app.command()
