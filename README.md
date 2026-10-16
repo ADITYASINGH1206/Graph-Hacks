@@ -176,6 +176,37 @@ curl -s -X POST http://localhost:8000/guard \
   -d '{"description": "Restore Python 3.6 compatibility helpers", "paths": ["src/flask/compat.py"]}' | jq
 ```
 
+### Time Machine, knowledge-risk map and PR Guard
+```bash
+# Date bounds and decided/replaced events for the slider
+curl -s http://localhost:8000/timeline/range | jq
+# What was decided, and what was already replaced, by the end of a day
+curl -s "http://localhost:8000/timeline/snapshot?date=2021-06-01T23:59:59Z" | jq
+# Modules ranked by fragile knowledge (few, concentrated or inactive experts)
+curl -s "http://localhost:8000/risk/modules?window_days=365" | jq
+# Check a GitHub PR against past decisions (needs outbound access to api.github.com)
+curl -s -X POST http://localhost:8000/guard/pr \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://github.com/pallets/flask/pull/5000"}' | jq
+```
+Notes: `/risk/modules` measures "active" relative to the newest activity in the graph (reported as `as_of_source`), so an old snapshot is not all marked inactive. `/guard/pr` only accepts `https://github.com/<owner>/<repo>/pull/<n>` links, never follows redirects, and reports which judge ran (`guard.judge` = `llm`, `mixed` or `heuristic`). The keyword heuristic is tuned to the Flask demo and is not a general conflict detector.
+
+---
+
+## Web UI (Strata)
+
+`cd frontend && npm run dev`, then open http://localhost:5173.
+
+| Route | Page |
+|---|---|
+| `#/` | Landing page: scroll-driven "dig" animation, how it works, live graph counts |
+| `#/app` | Workspace: chat, graph canvas, evidence, Decision Guard |
+| `#/time` | Time Machine: slider and play button over `/timeline/*`; deep link with `#/time?date=YYYY-MM-DD` |
+| `#/guard` | PR Guard: paste a PR link, see conflicts, quotes, judge badge and suggested reviewers |
+| `#/risk` | Knowledge-risk map: module heat grid with expert detail |
+
+`Cmd/Ctrl+K` opens a command palette (pages, actions, jump to a decision) and the **Tour** button walks through the four app pages. The top bar always says where data comes from: `LIVE`, `OFFLINE DEMO MODE`, `NO API KEY`, `BACKEND OFFLINE` or `DEMO DATA` (recorded samples; switch with the top-bar button or `VITE_MOCK=1`). Pages never fall back to demo data silently.
+
 ---
 
 ## Testing

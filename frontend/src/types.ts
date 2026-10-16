@@ -114,4 +114,94 @@ export interface GuardResponse {
   alignments: GuardAlignment[]
   reversed_before: GuardAlignment[]
   graph: GraphElements
+  /** "llm" = model judged each pair, "heuristic" = built-in keyword rules (demo-tuned). */
+  judge?: 'llm' | 'heuristic' | 'mixed'
+}
+
+// ---- Time Machine / risk / PR Guard (backend: dig/api/insights.py) ----
+
+export interface TimelineEvent {
+  date: string
+  kind: 'decided' | 'ended'
+  decision_id: string
+  title: string
+}
+
+export interface TimelineRange {
+  min_date: string | null
+  max_date: string | null
+  events: TimelineEvent[]
+  undated_count: number
+}
+
+export interface SnapshotDecision {
+  id: string
+  title: string
+  type: string
+  summary: string
+  status: string
+  decided_at: string | null
+  ended_at: string | null
+  modules: string[]
+}
+
+export interface Snapshot {
+  as_of: string
+  active: SnapshotDecision[]
+  ended: SnapshotDecision[]
+  upcoming_count: number
+  undated_count: number
+  graph: GraphElements
+}
+
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
+
+export interface ModuleExpert {
+  login: string
+  score: number
+  share: number
+  last_active: string | null
+  active: boolean
+}
+
+export interface ModuleRisk {
+  module: string
+  risk: RiskLevel
+  risk_score: number
+  reasons: string[]
+  bus_factor: number
+  active_experts: number
+  experts: ModuleExpert[]
+  decisions_total: number
+  decisions_active: number
+}
+
+export interface RiskReport {
+  as_of: string
+  as_of_source: 'graph_latest' | 'requested' | 'now'
+  window_days: number
+  modules: ModuleRisk[]
+}
+
+export interface PRInfo {
+  owner: string
+  repo: string
+  number: number
+  title: string
+  state: string
+  author: string
+  url: string
+  additions: number
+  deletions: number
+  changed_files: number
+  files_checked: number
+  truncated_files: boolean
+}
+
+export interface PRGuardResponse {
+  pr: PRInfo
+  graph_repo: string
+  repo_matches_graph: boolean
+  guard: GuardResponse
+  suggested_reviewers: string[]
 }
