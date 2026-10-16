@@ -88,7 +88,7 @@ export function Tour({ onClose }: { onClose: () => void }) {
       <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: 20, margin: '6px 0' }}>{step.title}</h3>
       <p style={{ fontSize: 14, color: 'var(--muted)' }}>{step.body}</p>
       {!demo && !backendUp && (
-        <p style={{ fontSize: 12, color: '#f3d28a', marginTop: 8 }}>
+        <p style={{ fontSize: 12, color: 'var(--warn-ink)', marginTop: 8 }}>
           The backend is not reachable.{' '}
           <button onClick={() => setDemo(true)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }}>
             Try the tour with demo data

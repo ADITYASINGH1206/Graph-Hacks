@@ -70,103 +70,71 @@ def search_decisions(
     status: str | None = None,
     limit: int = 8,
 ) -> QueryResult[list[DecisionSearchResult]]:
-    """Search decisions using fulltext index or property match with filters."""
+    """Search decisions, ranked by relevance to the query.
+
+    Candidates are filtered in Cypher (module, status, type; all parameterised) and ranked in
+    Python with ``dig.graph.ranking`` so version numbers and module names count. With an empty
+    query the newest decisions come first.
+    """
+    from dig.graph.ranking import query_terms, score_decision
+
     elements = GraphElements()
-    items: list[DecisionSearchResult] = []
+    cypher = """
+    MATCH (node:Decision)
+    OPTIONAL MATCH (node)-[:AFFECTS]->(m:Module)
+    WITH node, collect(DISTINCT m.name) AS modules
+    WHERE ($module IS NULL OR $module IN modules)
+      AND ($status IS NULL OR node.status = $status)
+      AND ($dtype IS NULL OR node.type = $dtype)
+    RETURN node, modules
+    LIMIT 5000
+    """
+    res = graph.query(cypher, params={"module": module, "status": status, "dtype": decision_type})
 
-    import re
-
-    clean_q = re.sub(r"[:\-/@\[\]()!+~^%*?\"']", " ", query).strip()
-    words = [w for w in clean_q.split() if len(w) > 1 and not w.isdigit()]
-    fulltext_expr = "|".join(words) if words else clean_q
-    use_fulltext = bool(fulltext_expr and fulltext_expr != "*")
-
-    if use_fulltext:
-        cypher = """
-        CALL db.idx.fulltext.queryNodes('Decision', $q) YIELD node, score
-        OPTIONAL MATCH (node)-[:AFFECTS]->(m:Module)
-        WITH node, score, collect(DISTINCT m.name) AS modules
-        WHERE ($module IS NULL OR $module IN modules)
-          AND ($status IS NULL OR node.status = $status)
-          AND ($dtype IS NULL OR node.type = $dtype)
-        RETURN node, modules, score
-        ORDER BY score DESC LIMIT $limit
-        """
-        params = {
-            "q": fulltext_expr,
-            "module": module,
-            "status": status,
-            "dtype": decision_type,
-            "limit": limit,
-        }
-    else:
-        cypher = """
-        MATCH (node:Decision)
-        OPTIONAL MATCH (node)-[:AFFECTS]->(m:Module)
-        WITH node, 1.0 AS score, collect(DISTINCT m.name) AS modules
-        WHERE ($module IS NULL OR $module IN modules)
-          AND ($status IS NULL OR node.status = $status)
-          AND ($dtype IS NULL OR node.type = $dtype)
-        RETURN node, modules, score
-        ORDER BY node.decided_at DESC LIMIT $limit
-        """
-        params = {
-            "module": module,
-            "status": status,
-            "dtype": decision_type,
-            "limit": limit,
-        }
-
-    try:
-        res = graph.query(cypher, params=params)
-        # If fulltext returned 0 results, try matching by substring
-        if use_fulltext and (not res.result_set or len(res.result_set) == 0):
-            fallback_cypher = """
-            MATCH (node:Decision)
-            OPTIONAL MATCH (node)-[:AFFECTS]->(m:Module)
-            WITH node, 1.0 AS score, collect(DISTINCT m.name) AS modules
-            WHERE ($module IS NULL OR $module IN modules)
-              AND ($status IS NULL OR node.status = $status)
-              AND ($dtype IS NULL OR node.type = $dtype)
-              AND (toLower(node.title) CONTAINS toLower($raw_q) OR toLower(node.summary) CONTAINS toLower($raw_q))
-            RETURN node, modules, score
-            ORDER BY node.decided_at DESC LIMIT $limit
-            """
-            res = graph.query(fallback_cypher, params={**params, "raw_q": query.strip()})
-    except Exception as exc:
-        logger.warning("Fulltext query failed, falling back to substring search: %s", exc)
-        fallback_cypher = """
-        MATCH (node:Decision)
-        OPTIONAL MATCH (node)-[:AFFECTS]->(m:Module)
-        WITH node, 1.0 AS score, collect(DISTINCT m.name) AS modules
-        WHERE ($module IS NULL OR $module IN modules)
-          AND ($status IS NULL OR node.status = $status)
-          AND ($dtype IS NULL OR node.type = $dtype)
-        RETURN node, modules, score
-        ORDER BY node.decided_at DESC LIMIT $limit
-        """
-        res = graph.query(fallback_cypher, params=params)
-    if res.result_set:
-        for row in res.result_set:
-            node = row[0]
-            modules_list = row[1] or []
-            score = float(row[2]) if len(row) > 2 and row[2] is not None else 1.0
-
-            props = dict(getattr(node, "properties", {}))
-            g_node = node_to_graph_node(node)
-            elements.nodes.append(g_node)
-
-            items.append(
-                DecisionSearchResult(
-                    id=str(props.get("id", "")),
-                    title=str(props.get("title", "")),
-                    type=str(props.get("type", "")),
-                    status=str(props.get("status", "")),
-                    decided_at=props.get("decided_at"),
-                    modules=modules_list,
-                    score=round(score, 3),
-                )
+    words, versions = query_terms(query)
+    has_query = bool(words or versions)
+    scored: list[tuple[float, str, Any, list[str]]] = []
+    for row in res.result_set or []:
+        node = row[0]
+        modules_list = list(row[1] or [])
+        props = dict(getattr(node, "properties", {}))
+        score = (
+            score_decision(
+                query,
+                str(props.get("title", "")),
+                str(props.get("summary", "")),
+                modules_list,
+                str(props.get("type", "")),
             )
+            if has_query
+            else 1.0
+        )
+        if has_query and score <= 0:
+            continue
+        scored.append((score, str(props.get("decided_at") or ""), node, modules_list))
+
+    # Highest score first; ties go to the most recent decision.
+    scored.sort(key=lambda t: (t[0], t[1]), reverse=True)
+    if has_query and scored:
+        # Drop incidental matches (a shared word like 'python') far below the best hit.
+        cutoff = scored[0][0] * 0.15
+        scored = [t for t in scored if t[0] >= cutoff]
+
+    items: list[DecisionSearchResult] = []
+    for score, _decided, node, modules_list in scored[:limit]:
+        props = dict(getattr(node, "properties", {}))
+        elements.nodes.append(node_to_graph_node(node))
+        items.append(
+            DecisionSearchResult(
+                id=str(props.get("id", "")),
+                title=str(props.get("title", "")),
+                type=str(props.get("type", "")),
+                status=str(props.get("status", "")),
+                decided_at=props.get("decided_at"),
+                modules=modules_list,
+                score=round(score, 3),
+            )
+        )
 
     return QueryResult(data=items, graph_elements=elements)
 

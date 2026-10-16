@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { GraphCanvas } from '../components/GraphCanvas'
-import { Page, PageHeader, SourceNotice, StatusDot, card, label } from '../components/ui'
+import { Page, PageHeader, Skeleton, SkeletonBlock, SourceNotice, StatusDot, card, label } from '../components/ui'
 import { formatDate, getJson } from '../lib/api'
 import { useSession } from '../lib/session'
 import { DEMO_RANGE, demoSnapshot } from '../mock/insights'
@@ -133,6 +133,23 @@ export function TimeMachine() {
         subtitle="Drag back in time to see what the project had decided by the end of any day, and which decisions had already been replaced by then."
       />
       <SourceNotice error={error} />
+
+      {!range && !error && (
+        <div aria-busy="true">
+          <div style={{ ...card, padding: '16px 20px', marginBottom: 16, display: 'grid', gap: 12 }}>
+            <Skeleton w={220} h={30} />
+            <Skeleton h={8} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(280px, 2fr)', gap: 16 }}>
+            <div style={{ ...card, height: 360, padding: 20 }}>
+              <SkeletonBlock lines={5} />
+            </div>
+            <div style={{ ...card, padding: 14 }}>
+              <SkeletonBlock lines={6} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {range && !hasData && !error && (
         <div style={{ ...card, padding: 20, color: 'var(--muted)' }}>

@@ -1,6 +1,7 @@
 """Tool definitions and registry for Agent loop and FastMCP server."""
 
 import inspect
+import typing
 from collections.abc import Callable
 from typing import Any
 
@@ -29,6 +30,52 @@ class ToolMeta(BaseModel):
     parameters_schema: dict[str, Any]
 
 
+PARAM_DOCS: dict[str, str] = {
+    "query": "Keywords or a short question, e.g. 'Python 3.6' or 'async views'. Keep version numbers.",
+    "module": "Module name exactly as in the graph, e.g. 'flask/compat' or 'flask/app'.",
+    "decision_type": "Filter by decision type, e.g. 'deprecation', 'adoption' or 'architectural'.",
+    "status": "Filter by status: 'active', 'superseded' or 'reversed'.",
+    "limit": "Maximum number of results to return.",
+    "decision_id": "Decision id returned by search_decisions, e.g. 'dec_drop_py36'.",
+    "a_id": "First entity id, e.g. 'Decision:dec_drop_py36' or 'Person:davidism'.",
+    "b_id": "Second entity id in the same format as a_id.",
+    "scope": "'all' for the whole graph, or a module name to rank people inside that module.",
+    "since": "ISO date such as '2022-01-01'; only changes after it are returned.",
+    "description": "Plain-language description of the proposed change.",
+    "paths": "File paths the change touches, e.g. ['src/flask/compat.py'].",
+    "topic": "What to recall from this user's earlier sessions.",
+    "user_id": "Identifier of the current user.",
+    "note": "Short note to store with the pinned decision.",
+}
+
+
+def _unwrap_optional(annotation: Any) -> Any:
+    """``X | None`` / ``Optional[X]`` -> ``X``."""
+    args = typing.get_args(annotation)
+    if args and type(None) in args:
+        rest = [a for a in args if a is not type(None)]
+        if len(rest) == 1:
+            return rest[0]
+    return annotation
+
+
+def _param_schema(name: str, annotation: Any) -> dict[str, Any]:
+    """JSON schema for one tool parameter, including a real description and list item types."""
+    annotation = _unwrap_optional(annotation)
+    type_map = {str: "string", int: "integer", float: "number", bool: "boolean", dict: "object"}
+    desc = PARAM_DOCS.get(name, f"The {name.replace('_', ' ')}.")
+    if annotation is list or typing.get_origin(annotation) is list:
+        item_args = typing.get_args(annotation)
+        item_type = type_map.get(item_args[0], "string") if item_args else "string"
+        return {"type": "array", "items": {"type": item_type}, "description": desc}
+    return {"type": type_map.get(annotation, "string"), "description": desc}
+
+
+def _count(n: int, noun: str) -> str:
+    """'1 decision' / '2 decisions'."""
+    return f"{n} {noun}{'' if n == 1 else 's'}"
+
+
 class ToolRegistry:
     """Central registry of tools used by both the LLM agent and FastMCP server."""
 
@@ -43,30 +90,10 @@ class ToolRegistry:
             properties: dict[str, Any] = {}
             required: list[str] = []
 
-            type_map = {
-                str: "string",
-                int: "integer",
-                float: "number",
-                bool: "boolean",
-                list: "array",
-                dict: "object",
-            }
-
             for param_name, param in sig.parameters.items():
                 if param_name in ("graph", "self"):
                     continue
-                annotation = param.annotation
-                ptype = "string"
-                if annotation in type_map:
-                    ptype = type_map[annotation]
-                elif hasattr(annotation, "__origin__"):
-                    if annotation.__origin__ is list:
-                        ptype = "array"
-
-                properties[param_name] = {
-                    "type": ptype,
-                    "description": f"Parameter {param_name}",
-                }
+                properties[param_name] = _param_schema(param_name, param.annotation)
                 if param.default is inspect.Parameter.empty:
                     required.append(param_name)
 
@@ -126,7 +153,7 @@ def tool_search_decisions(
     return {
         "data": [d.model_dump() for d in res.data],
         "graph_elements": res.graph_elements.model_dump(),
-        "summary": f"Found {len(res.data)} decisions matching '{query}'.",
+        "summary": f"Found {_count(len(res.data), 'decision')} matching '{query}'.",
     }
 
 
@@ -170,7 +197,8 @@ def tool_trace_to_source(
             "summary": f"No source evidence found for {decision_id}.",
         }
 
-    evidence_list = [ev.model_dump() for ev in res.data.evidence]
+    # decision_id lets the UI link each citation back to its decision
+    evidence_list = [{**ev.model_dump(), "decision_id": decision_id} for ev in res.data.evidence]
     return {
         "data": evidence_list,
         "graph_elements": res.graph_elements.model_dump(),
@@ -191,7 +219,7 @@ def tool_decision_lineage(
     return {
         "data": res.data.model_dump(),
         "graph_elements": res.graph_elements.model_dump(),
-        "summary": f"Found {len(res.data.hops)} lineage hops for {decision_id}.",
+        "summary": f"Found {_count(len(res.data.hops), 'lineage hop')} for {decision_id}.",
     }
 
 
@@ -209,7 +237,7 @@ def tool_who_knows(
     return {
         "data": [p.model_dump() for p in res.data],
         "graph_elements": res.graph_elements.model_dump(),
-        "summary": f"Found {len(res.data)} experts for module '{module}'.",
+        "summary": f"Found {_count(len(res.data), 'expert')} for module '{module}'.",
     }
 
 
@@ -233,7 +261,7 @@ def tool_who_decided(
     return {
         "data": people,
         "graph_elements": res.graph_elements.model_dump(),
-        "summary": f"Found {len(people)} engineers who decided {decision_id}.",
+        "summary": f"Found {_count(len(people), 'engineer')} who decided {decision_id}.",
     }
 
 
@@ -333,7 +361,7 @@ def tool_recent_changes(
     return {
         "data": items,
         "graph_elements": elements.model_dump(),
-        "summary": f"Found {len(items)} decisions since {since}.",
+        "summary": f"Found {_count(len(items), 'decision')} since {since}.",
     }
 
 

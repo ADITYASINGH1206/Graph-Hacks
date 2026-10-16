@@ -23,6 +23,8 @@ from dig.graph.models import GraphElements
 
 logger = logging.getLogger(__name__)
 
+LLM_TIMEOUT_S = 90.0
+
 
 class MissingApiKeyError(RuntimeError):
     """Raised when no LLM key is configured and offline mode was not requested."""
@@ -141,23 +143,38 @@ class DecisionAgent:
 
         round_num = 0
         did_repair = False
+        did_nudge = False
 
         while round_num < self.max_rounds:
             round_num += 1
 
             # Call LLM
             response = None
+            yield AgentEvent(event="status", data={"phase": "thinking", "round": round_num})
             try:
                 # Run synchronous client generate_content in thread pool
                 loop = asyncio.get_running_loop()
-                response = await loop.run_in_executor(
-                    None,
-                    lambda: client.models.generate_content(
-                        model=settings.agent_model,
-                        contents=contents,
-                        config=config,
+                response = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        lambda: client.models.generate_content(
+                            model=settings.agent_model,
+                            contents=contents,
+                            config=config,
+                        ),
                     ),
+                    timeout=LLM_TIMEOUT_S,
                 )
+            except TimeoutError:
+                logger.error("LLM call timed out on round %d", round_num)
+                yield AgentEvent(
+                    event="error",
+                    data={"message": f"The model did not answer within {int(LLM_TIMEOUT_S)}s."},
+                )
+                yield AgentEvent(
+                    event="done", data={"session_id": session_id, "tool_rounds": round_num}
+                )
+                return
             except Exception as exc:
                 logger.error("LLM call failed on round %d: %s", round_num, exc)
                 yield AgentEvent(event="error", data={"message": f"LLM generation failed: {exc}"})
@@ -250,7 +267,25 @@ class DecisionAgent:
             text_parts = [p.text for p in parts if getattr(p, "text", None)]
             answer_text = "".join(text_parts).strip()
 
-            yield AgentEvent(event="token", data={"text": answer_text})
+            # The draft is never shown to the user: only the verified answer is emitted.
+            if not tool_results_history and not did_nudge and round_num < self.max_rounds:
+                # Answering from memory breaks the core rule; push back once.
+                did_nudge = True
+                contents.append(candidate.content)
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[
+                            types.Part.from_text(
+                                text="You answered without using any tool. Call the graph tools "
+                                "first and answer only from their results."
+                            )
+                        ],
+                    )
+                )
+                continue
+
+            yield AgentEvent(event="status", data={"phase": "verifying", "round": round_num})
 
             # Verification turn
             evidence_map = collect_evidence_from_tool_results(

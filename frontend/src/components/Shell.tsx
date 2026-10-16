@@ -23,14 +23,14 @@ export function Shell({ route, onOpenPalette, onStartTour, children }: ShellProp
   const { demo, setDemo, health, backendUp } = useSession()
   const llm = health.llm_mode
   const status = demo
-    ? { text: 'DEMO DATA', bg: '#3a2a12', fg: '#f3d28a', tip: 'Recorded sample data. No backend calls.' }
+    ? { text: 'DEMO DATA', bg: 'var(--warn-bg)', fg: 'var(--warn-ink)', tip: 'Recorded sample data. No backend calls.' }
     : !backendUp
-      ? { text: 'BACKEND OFFLINE', bg: '#4a1c1c', fg: '#fecaca', tip: 'Cannot reach the API. Start it with `dig serve`, or switch to Demo data.' }
+      ? { text: 'BACKEND OFFLINE', bg: 'var(--bad-bg)', fg: 'var(--bad-ink)', tip: 'Cannot reach the API. Start it with `dig serve`, or switch to Demo data.' }
       : llm === 'offline'
-        ? { text: 'OFFLINE DEMO MODE', bg: '#3a2a12', fg: '#f3d28a', tip: 'DIG_OFFLINE=1: answers are canned demo replies, not a live model.' }
+        ? { text: 'OFFLINE DEMO MODE', bg: 'var(--warn-bg)', fg: 'var(--warn-ink)', tip: 'DIG_OFFLINE=1: answers are canned demo replies, not a live model.' }
         : llm === 'no_key'
-          ? { text: 'NO API KEY', bg: '#4a1c1c', fg: '#fecaca', tip: 'No GEMINI_API_KEY set: questions will return an error.' }
-          : { text: 'LIVE', bg: '#10301f', fg: '#86efac', tip: 'Connected to the backend with a live model.' }
+          ? { text: 'NO API KEY', bg: 'var(--bad-bg)', fg: 'var(--bad-ink)', tip: 'No GEMINI_API_KEY set: questions will return an error.' }
+          : { text: 'LIVE', bg: 'var(--ok-bg)', fg: 'var(--ok-ink)', tip: 'Connected to the backend with a live model.' }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%' }}>
@@ -126,7 +126,9 @@ export function Shell({ route, onOpenPalette, onStartTour, children }: ShellProp
           </button>
         </div>
       </header>
-      <main style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{children}</main>
+      <main key={route} className="page-in" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {children}
+      </main>
     </div>
   )
 }

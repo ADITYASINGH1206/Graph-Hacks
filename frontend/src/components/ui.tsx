@@ -39,14 +39,14 @@ export function SourceNotice({ error }: { error?: string | null }) {
   const { demo, setDemo } = useSession()
   if (demo) {
     return (
-      <div role="status" style={{ ...notice, borderColor: '#5c4318', color: '#f3d28a' }}>
+      <div role="status" style={{ ...notice, borderColor: 'var(--warn-line)', color: 'var(--warn-ink)' }}>
         Showing recorded demo data, not your graph. Switch to the live backend in the top bar.
       </div>
     )
   }
   if (error) {
     return (
-      <div role="alert" style={{ ...notice, borderColor: '#6b2323', color: '#fecaca' }}>
+      <div role="alert" style={{ ...notice, borderColor: 'var(--bad-line)', color: 'var(--bad-ink)' }}>
         {error}{' '}
         <button
           onClick={() => setDemo(true)}
@@ -74,6 +74,31 @@ export function Page({ children }: { children: ReactNode }) {
 }
 
 export function StatusDot({ status }: { status: string }) {
-  const color = status === 'active' ? '#10b981' : status === 'reversed' ? '#ef4444' : '#f59e0b'
+  const color = status === 'active' ? 'var(--ok)' : status === 'reversed' ? 'var(--bad)' : 'var(--warn)'
   return <span aria-hidden style={{ width: 8, height: 8, borderRadius: 2, background: color, display: 'inline-block' }} />
+}
+
+export function Skeleton({ w = '100%', h = 12, style }: { w?: number | string; h?: number; style?: CSSProperties }) {
+  return <span className="skeleton" style={{ width: w, height: h, ...style }} aria-hidden />
+}
+
+export function SkeletonBlock({ lines = 3 }: { lines?: number }) {
+  return (
+    <div role="status" aria-label="Loading" style={{ display: 'grid', gap: 8 }}>
+      {Array.from({ length: lines }, (_, i) => (
+        <Skeleton key={i} w={i === lines - 1 ? '62%' : '100%'} />
+      ))}
+    </div>
+  )
+}
+
+export const JUDGE: Record<string, { text: string; tip: string; bg: string; fg: string }> = {
+  llm: { text: 'Judged by the LLM', tip: 'A model compared the proposal with each related decision.', bg: 'var(--ok-bg)', fg: 'var(--ok-ink)' },
+  mixed: { text: 'Mixed judge', tip: 'Some decisions were judged by the model, others by the built-in rules.', bg: 'var(--warn-bg)', fg: 'var(--warn-ink)' },
+  heuristic: {
+    text: 'Keyword rules, not an LLM',
+    tip: 'No usable model response. The built-in rules are tuned to the Flask demo and may miss conflicts elsewhere.',
+    bg: 'var(--warn-bg)',
+    fg: 'var(--warn-ink)',
+  },
 }

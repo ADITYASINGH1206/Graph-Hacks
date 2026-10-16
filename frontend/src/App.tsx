@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { CommandPalette } from './components/CommandPalette'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Shell } from './components/Shell'
 import { Tour, tourSeen } from './components/Tour'
 import { useRoute } from './lib/router'
@@ -8,7 +9,7 @@ import { Landing } from './pages/Landing'
 import { PRGuard } from './pages/PRGuard'
 import { RiskMap } from './pages/RiskMap'
 import { TimeMachine } from './pages/TimeMachine'
-import { Workspace } from './pages/Workspace'
+import { Ask } from './pages/Ask'
 
 function Routes() {
   const route = useRoute()
@@ -57,10 +58,12 @@ function Routes() {
   return (
     <>
       <Shell route={route} onOpenPalette={() => setPaletteOpen(true)} onStartTour={startTour}>
-        {route === 'app' && <Workspace />}
-        {route === 'time' && <TimeMachine />}
-        {route === 'guard' && <PRGuard />}
-        {route === 'risk' && <RiskMap />}
+        <ErrorBoundary key={route}>
+          {route === 'app' && <Ask />}
+          {route === 'time' && <TimeMachine />}
+          {route === 'guard' && <PRGuard />}
+          {route === 'risk' && <RiskMap />}
+        </ErrorBoundary>
       </Shell>
       {palette}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} />}

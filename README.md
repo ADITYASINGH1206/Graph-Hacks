@@ -200,10 +200,12 @@ Notes: `/risk/modules` measures "active" relative to the newest activity in the 
 | Route | Page |
 |---|---|
 | `#/` | Landing page: scroll-driven "dig" animation, how it works, live graph counts |
-| `#/app` | Workspace: chat, graph canvas, evidence, Decision Guard |
+| `#/app` | Ask: chat with live tool steps, animated graph path, timeline, evidence and Decision Guard |
 | `#/time` | Time Machine: slider and play button over `/timeline/*`; deep link with `#/time?date=YYYY-MM-DD` |
 | `#/guard` | PR Guard: paste a PR link, see conflicts, quotes, judge badge and suggested reviewers |
 | `#/risk` | Knowledge-risk map: module heat grid with expert detail |
+
+The whole UI uses the landing page palette (cream and ink). Every page shows skeleton or typing loaders while data loads, and the landing page has an animated "how it works" walkthrough. The Ask page types out only the verified answer; its badge reflects real citation counts (green verified, amber no sources cited, red invalid) and canned offline answers are labelled.
 
 `Cmd/Ctrl+K` opens a command palette (pages, actions, jump to a decision) and the **Tour** button walks through the four app pages. The top bar always says where data comes from: `LIVE`, `OFFLINE DEMO MODE`, `NO API KEY`, `BACKEND OFFLINE` or `DEMO DATA` (recorded samples; switch with the top-bar button or `VITE_MOCK=1`). Pages never fall back to demo data silently.
 
@@ -213,7 +215,7 @@ Notes: `/risk/modules` measures "active" relative to the newest activity in the 
 
 Run unit and integration test suites:
 ```bash
-# Run all backend unit tests (54 passing tests)
+# Run all backend unit tests (155 passing tests; needs FalkorDB running)
 pytest -v
 
 # Run Python linter

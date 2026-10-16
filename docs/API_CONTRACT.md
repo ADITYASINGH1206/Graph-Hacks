@@ -23,12 +23,13 @@ Events (each `event:` name with a JSON `data:` line):
 | event | data |
 |---|---|
 | `recall` | `{ "findings": [{ "id": "", "summary": "", "ts": "" }] }` |
+| `status` | `{ "phase": "thinking"\|"verifying", "round": 1 }` progress for loading states |
 | `tool_call` | `{ "id": "", "name": "", "input": {} }` |
 | `tool_result` | `{ "id": "", "name": "", "summary": "short text", "graph_elements": GraphElements }` |
-| `token` | `{ "text": "" }` streamed answer text, markers already left as `[[ev:ID]]` |
+| `token` | Deprecated, no longer emitted. Only the verified `answer` is sent; clients may animate it locally |
 | `answer` | `{ "markdown": "", "citations": Citation[], "path": GraphElements, "verification": Verification }` markers converted to `[1]`, `[2]` |
 | `error` | `{ "message": "" }` |
-| `done` | `{ "session_id": "", "tool_rounds": 0 }` |
+| `done` | `{ "session_id": "", "tool_rounds": 0, "offline": false }` `offline` is true for canned `DIG_OFFLINE=1` answers |
 
 ## POST /guard
 Request: `{ "description": string, "paths": string[] }`
