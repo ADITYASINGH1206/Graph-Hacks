@@ -148,23 +148,73 @@ class DecisionAgent:
         while round_num < self.max_rounds:
             round_num += 1
 
-            # Call LLM
+            # Call LLM with retry on transient 503/429 errors and candidate fallback
             response = None
             yield AgentEvent(event="status", data={"phase": "thinking", "round": round_num})
             try:
-                # Run synchronous client generate_content in thread pool
-                loop = asyncio.get_running_loop()
-                response = await asyncio.wait_for(
-                    loop.run_in_executor(
-                        None,
-                        lambda: client.models.generate_content(
-                            model=settings.agent_model,
-                            contents=contents,
-                            config=config,
-                        ),
-                    ),
-                    timeout=LLM_TIMEOUT_S,
+                candidate_models = list(
+                    dict.fromkeys(
+                        [
+                            m
+                            for m in [
+                                settings.agent_model,
+                                "gemini-3-flash-preview",
+                                "gemini-flash-latest",
+                            ]
+                            if m
+                        ]
+                    )
                 )
+                last_exc: Exception | None = None
+                for m in candidate_models:
+                    for attempt in range(3):
+                        try:
+                            loop = asyncio.get_running_loop()
+                            response = await asyncio.wait_for(
+                                loop.run_in_executor(
+                                    None,
+                                    lambda m=m: client.models.generate_content(
+                                        model=m,
+                                        contents=contents,
+                                        config=config,
+                                    ),
+                                ),
+                                timeout=LLM_TIMEOUT_S,
+                            )
+                            last_exc = None
+                            break
+                        except TimeoutError:
+                            raise
+                        except Exception as exc:
+                            last_exc = exc
+                            err_str = str(exc)
+                            is_transient = (
+                                "503" in err_str
+                                or "UNAVAILABLE" in err_str
+                                or "high demand" in err_str
+                                or "429" in err_str
+                            )
+                            if is_transient and attempt < 2:
+                                wait_s = 1.0 * (attempt + 1)
+                                logger.warning(
+                                    "Transient error calling %s (attempt %d/3): %s. Retrying in %.1fs...",
+                                    m,
+                                    attempt + 1,
+                                    exc,
+                                    wait_s,
+                                )
+                                await asyncio.sleep(wait_s)
+                                continue
+                            logger.warning(
+                                "Model %s failed with %s; trying next model if available...",
+                                m,
+                                exc,
+                            )
+                            break
+                    if response is not None:
+                        break
+                if response is None and last_exc:
+                    raise last_exc
             except TimeoutError:
                 logger.error("LLM call timed out on round %d", round_num)
                 yield AgentEvent(

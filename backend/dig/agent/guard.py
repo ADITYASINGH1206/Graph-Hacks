@@ -148,23 +148,37 @@ def llm_judge(
         summary=decision_summary or decision_title,
         proposal=proposal[:4000],
     )
-    try:
-        response = client.models.generate_content(
-            model=settings.extract_model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.0, response_mime_type="application/json"
-            ),
+    candidate_models = list(
+        dict.fromkeys(
+            [
+                m
+                for m in [settings.extract_model, "gemini-3-flash-preview", "gemini-flash-latest"]
+                if m
+            ]
         )
-        data = json.loads(response.text or "")
-        verdict = data.get("verdict")
-        if verdict not in _VERDICTS:
-            return None
-        confidence = max(0.0, min(1.0, float(data.get("confidence", 0.5))))
-        return {"verdict": verdict, "confidence": confidence, "why": str(data.get("why", ""))[:400]}
-    except Exception as exc:
-        logger.warning("LLM guard judge failed, using heuristic: %s", exc)
-        return None
+    )
+    for m in candidate_models:
+        try:
+            response = client.models.generate_content(
+                model=m,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.0, response_mime_type="application/json"
+                ),
+            )
+            data = json.loads(response.text or "")
+            verdict = data.get("verdict")
+            if verdict not in _VERDICTS:
+                return None
+            confidence = max(0.0, min(1.0, float(data.get("confidence", 0.5))))
+            return {
+                "verdict": verdict,
+                "confidence": confidence,
+                "why": str(data.get("why", ""))[:400],
+            }
+        except Exception as exc:
+            logger.warning("LLM guard judge failed with model %s: %s", m, exc)
+    return None
 
 
 def judge_proposal(
