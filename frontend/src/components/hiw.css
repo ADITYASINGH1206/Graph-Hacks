@@ -1,0 +1,151 @@
+/* How-it-works scenes. Every animated part reads --d (delay) so scenes stay declarative. */
+.hiw-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  font-family: var(--font-ui);
+}
+.hiw-svg text {
+  fill: var(--text);
+}
+.hiw-svg .mono {
+  font-family: var(--font-mono);
+}
+.hiw-svg .muted {
+  fill: var(--muted);
+}
+
+@keyframes hiw-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-48px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hiw-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hiw-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes hiw-draw {
+  from {
+    stroke-dashoffset: var(--len, 200);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes hiw-sweep {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes hiw-dim {
+  to {
+    opacity: 0.4;
+  }
+}
+@keyframes hiw-pulse {
+  0%,
+  100% {
+    stroke-width: 3.2;
+  }
+  50% {
+    stroke-width: 5;
+  }
+}
+@keyframes hiw-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.hiw-slide,
+.hiw-pop,
+.hiw-fade,
+.hiw-sweep,
+.hiw-dim {
+  opacity: 0;
+  animation-fill-mode: both;
+  animation-delay: var(--d, 0s);
+  transform-box: fill-box;
+}
+.hiw-slide {
+  animation: hiw-slide 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) var(--d, 0s) both;
+}
+.hiw-pop {
+  transform-origin: center;
+  animation: hiw-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25) var(--d, 0s) both;
+}
+.hiw-fade {
+  animation: hiw-fade 0.5s ease var(--d, 0s) both;
+}
+.hiw-sweep {
+  opacity: 1;
+  transform-origin: left center;
+  animation: hiw-sweep 0.8s ease-out var(--d, 0s) both;
+}
+.hiw-dim {
+  opacity: 1;
+  animation: hiw-dim 0.5s ease var(--d, 0s) forwards;
+}
+.hiw-draw {
+  stroke-dasharray: var(--len, 200);
+  stroke-dashoffset: var(--len, 200);
+  animation: hiw-draw 0.7s ease-out var(--d, 0s) forwards;
+}
+.hiw-path {
+  opacity: 0;
+  animation:
+    hiw-fade 0.3s ease var(--d, 0s) forwards,
+    hiw-pulse 1.4s ease-in-out calc(var(--d, 0s) + 0.3s) infinite;
+}
+
+.hiw-progress {
+  transform-origin: left center;
+  animation: hiw-progress var(--dur, 5s) linear both;
+}
+.hiw-progress.paused {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hiw-slide,
+  .hiw-pop,
+  .hiw-fade,
+  .hiw-sweep,
+  .hiw-draw,
+  .hiw-path,
+  .hiw-progress {
+    animation: none;
+    opacity: 1;
+    stroke-dashoffset: 0;
+    transform: none;
+  }
+  .hiw-dim {
+    animation: none;
+    opacity: 0.4;
+  }
+}

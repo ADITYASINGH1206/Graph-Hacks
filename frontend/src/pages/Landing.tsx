@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
+import { HowItWorks } from '../components/HowItWorks'
 import { useReveal } from '../lib/reveal'
 import { hrefFor } from '../lib/router'
 import type { Route } from '../lib/router'
@@ -34,13 +35,6 @@ const FOSSILS = [
 ]
 
 const BANDS = ['var(--layer-1)', 'var(--layer-2)', 'var(--layer-3)', 'var(--layer-4)', 'var(--layer-5)']
-
-const STEPS = [
-  { n: '01', title: 'Ingest', body: 'Pull pull requests, issues and review threads from a GitHub repository. Every response is cached on disk.' },
-  { n: '02', title: 'Extract', body: 'A model reads each discussion and proposes decisions, with the exact words that justify them.' },
-  { n: '03', title: 'Verify', body: 'A quote is kept only if it appears word for word in the source. No match, no decision.' },
-  { n: '04', title: 'Ask', body: 'Questions are answered by walking the FalkorDB graph. Every claim in the answer links to a verified quote.' },
-]
 
 const FEATURES: Array<{ title: string; body: string; route: Route; cta: string }> = [
   { title: 'Ask the archive', body: 'Why was this dropped? Who knows this module? What changed since the last release? Answers cite their sources.', route: 'app', cta: 'Open the workspace' },
@@ -206,15 +200,9 @@ export function Landing() {
           <div style={eyebrow}>How it works</div>
           <h2 style={{ ...h2, maxWidth: 640 }}>From a thousand threads to one answer you can check.</h2>
         </div>
-        <ol style={{ listStyle: 'none', padding: 0, marginTop: 48, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24, position: 'relative' }}>
-          {STEPS.map((s, i) => (
-            <li key={s.n} className="reveal" style={{ transitionDelay: `${i * 120}ms`, borderTop: '2px solid var(--ink)', paddingTop: 16 }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--layer-4)' }}>{s.n}</div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 24, margin: '4px 0 8px' }}>{s.title}</h3>
-              <p style={{ color: 'var(--ink-soft)', fontSize: 15 }}>{s.body}</p>
-            </li>
-          ))}
-        </ol>
+        <div className="reveal" style={{ marginTop: 40 }}>
+          <HowItWorks />
+        </div>
         <p className="reveal" style={{ marginTop: 40, maxWidth: 680, fontSize: 15, color: 'var(--ink-soft)', borderLeft: '3px solid var(--layer-3)', paddingLeft: 16 }}>
           <strong style={{ color: 'var(--ink)' }}>What it will not do:</strong> invent a source. If a quote cannot be matched to the original text, the decision is dropped. With no API key the app says so instead of replaying canned answers.
         </p>
@@ -269,15 +257,15 @@ export function Landing() {
       </section>
 
       {/* Final CTA: the "underground" */}
-      <section style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+      <section style={{ background: 'var(--night)', color: 'var(--night-text)' }}>
         <div style={{ ...section, textAlign: 'center' }}>
           <div className="reveal">
-            <h2 style={{ ...h2, color: 'var(--text)' }}>Ready to go underground?</h2>
-            <p style={{ color: 'var(--muted)', margin: '14px auto 28px', maxWidth: 480 }}>Open the workspace and ask your first question. The guided tour takes under a minute.</p>
-            <a href={hrefFor('app')} style={{ ...ctaDark, background: 'var(--accent)', color: 'var(--accent-ink)', padding: '13px 26px', fontSize: 15 }}>Start digging</a>
+            <h2 style={{ ...h2, color: 'var(--night-text)' }}>Ready to go underground?</h2>
+            <p style={{ color: 'var(--night-muted)', margin: '14px auto 28px', maxWidth: 480 }}>Open the workspace and ask your first question. The guided tour takes under a minute.</p>
+            <a href={hrefFor('app')} style={{ ...ctaDark, background: 'var(--accent-bright)', color: '#1a0f08', padding: '13px 26px', fontSize: 15 }}>Start digging</a>
           </div>
         </div>
-        <footer style={{ borderTop: '1px solid var(--line)', padding: '20px 24px', textAlign: 'center', fontSize: 12, color: 'var(--muted)' }}>
+        <footer style={{ borderTop: '1px solid #2a241d', padding: '20px 24px', textAlign: 'center', fontSize: 12, color: 'var(--night-muted)' }}>
           Built for Graph Hacks 2026 on FalkorDB · Track 3, Company Brain
         </footer>
       </section>

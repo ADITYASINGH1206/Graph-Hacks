@@ -150,6 +150,8 @@ export const MOCK_GUARD_RESPONSE: GuardResponse = {
 }
 
 export async function* replayMockAskStream(): AsyncGenerator<{ event: string; data: any }> {
+  yield { event: 'status', data: { phase: 'thinking', round: 1 } }
+  await new Promise((r) => setTimeout(r, 500))
   // Step 1: Tool call
   yield {
     event: 'tool_call',
@@ -240,13 +242,8 @@ export async function* replayMockAskStream(): AsyncGenerator<{ event: string; da
   // Step 5: Token stream
   const fullText =
     'Python 3.6 and 3.7 support was officially dropped in March 2022 because both versions reached upstream end-of-life [1]. The change was authored by @davidism and merged in PR #4400, bumping Flask requirement to Python 3.8+.'
-  for (const word of fullText.split(' ')) {
-    yield {
-      event: 'token',
-      data: { text: word + ' ' },
-    }
-    await new Promise((r) => setTimeout(r, 40))
-  }
+  yield { event: 'status', data: { phase: 'verifying', round: 2 } }
+  await new Promise((r) => setTimeout(r, 450))
 
   // Step 6: Final Answer event
   yield {

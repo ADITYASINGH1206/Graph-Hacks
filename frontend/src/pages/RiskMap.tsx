@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Page, PageHeader, SourceNotice, card, label } from '../components/ui'
+import { Page, PageHeader, Skeleton, SkeletonBlock, SourceNotice, card, label } from '../components/ui'
 import { formatDate, getJson } from '../lib/api'
 import { useSession } from '../lib/session'
 import { DEMO_RISK } from '../mock/insights'
 import type { ModuleRisk, RiskLevel, RiskReport } from '../types'
 
 const COLORS: Record<RiskLevel, { bg: string; fg: string }> = {
-  critical: { bg: '#7f1d1d', fg: '#fecaca' },
-  high: { bg: '#8a3a12', fg: '#fed7aa' },
-  medium: { bg: '#6b5614', fg: '#fde68a' },
-  low: { bg: '#14532d', fg: '#bbf7d0' },
+  critical: { bg: '#b42318', fg: '#fffaf0' },
+  high: { bg: '#c8612f', fg: '#fffaf0' },
+  medium: { bg: '#e0b45a', fg: '#2a1d05' },
+  low: { bg: '#6f9a6a', fg: '#10210f' },
 }
 
 const SOURCE_TEXT = {
@@ -52,6 +52,19 @@ export function RiskMap() {
         subtitle="Which parts of the code does only a few people understand? Modules are ranked by how few experts they have, how concentrated the knowledge is, and whether those experts are still active."
       />
       <SourceNotice error={error} />
+
+      {!report && !error && (
+        <div aria-busy="true" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(280px, 2fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} h={96} style={{ borderRadius: 10 }} />
+            ))}
+          </div>
+          <div style={{ ...card, padding: 16 }}>
+            <SkeletonBlock lines={5} />
+          </div>
+        </div>
+      )}
 
       {report && (
         <>
@@ -97,6 +110,7 @@ export function RiskMap() {
                         background: c.bg,
                         color: c.fg,
                         border: `2px solid ${on ? 'var(--text)' : 'transparent'}`,
+                        boxShadow: on ? '0 6px 18px -8px rgba(22,19,15,0.5)' : 'none',
                         borderRadius: 10,
                         padding: 14,
                         cursor: 'pointer',
@@ -132,7 +146,7 @@ export function RiskMap() {
                     <div key={x.login} style={{ marginBottom: 8 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                         <span>
-                          @{x.login} {!x.active && <span style={{ color: '#fca5a5' }}>(inactive)</span>}
+                          @{x.login} {!x.active && <span style={{ color: 'var(--bad-ink)' }}>(inactive)</span>}
                         </span>
                         <span style={{ color: 'var(--muted)' }}>{Math.round(x.share * 100)}% · last seen {formatDate(x.last_active)}</span>
                       </div>
@@ -142,7 +156,7 @@ export function RiskMap() {
                             width: `${Math.round(x.share * 100)}%`,
                             height: '100%',
                             borderRadius: 3,
-                            background: x.active ? 'var(--accent)' : '#6b5d4a',
+                            background: x.active ? 'var(--accent)' : 'var(--line-2)',
                           }}
                         />
                       </div>

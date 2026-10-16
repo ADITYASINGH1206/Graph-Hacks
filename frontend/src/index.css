@@ -6,7 +6,7 @@
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* Surface */
+  /* Paper */
   --paper: #f4efe6;
   --paper-2: #ebe4d6;
   --ink: #16130f;
@@ -20,25 +20,42 @@
   --layer-4: #9c7650;
   --layer-5: #5e4631;
 
-  /* App (underground) */
-  --bg: #0e0c0a;
-  --panel: #16130f;
-  --panel-2: #1d1914;
-  --line: #2a241d;
-  --line-2: #3a3228;
-  --text: #ede6d8;
-  --muted: #a39887;
-  --accent: #e08a54;
-  --accent-ink: #1a0f08;
+  /* App: same paper palette as the landing page */
+  --bg: #f4efe6;
+  --panel: #fbf7ef;
+  --panel-2: #fffaf0;
+  --line: #ded5c3;
+  --line-2: #c9bea8;
+  --text: #16130f;
+  --muted: #5c554a;
+  --faint: #8b8272;
+  --accent: #a8552b;
+  --accent-soft: #f1ddcf;
+  --accent-ink: #fffaf0;
+  --accent-bright: #e08a54;
 
-  --ok: #10b981;
-  --warn: #f59e0b;
-  --bad: #ef4444;
+  --ok: #0f7a55;
+  --warn: #b45309;
+  --bad: #b42318;
+  --ok-ink: #0b6b48;
+  --warn-ink: #7a4a0b;
+  --bad-ink: #8f1d1d;
+  --ok-bg: #dcebdf;
+  --warn-bg: #f6e7c8;
+  --bad-bg: #f6dad5;
+  --ok-line: #a9cdb6;
+  --warn-line: #e3c98f;
+  --bad-line: #e2aaa2;
+
+  /* Night: used for the closing band on the landing page */
+  --night: #0e0c0a;
+  --night-text: #ede6d8;
+  --night-muted: #a39887;
 
   font-family: var(--font-ui);
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: dark;
+  color-scheme: light;
   color: var(--text);
   background-color: var(--bg);
   font-synthesis: none;
@@ -81,14 +98,14 @@ button {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--panel);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--line-2);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #4d4337;
+  background: var(--faint);
 }
 
 @keyframes pulseGlow {
@@ -152,6 +169,107 @@ button {
   }
   .fade-up,
   .pulsing {
+    animation: none;
+  }
+}
+
+/* ---------- Shared loading and motion primitives ---------- */
+@keyframes shimmer {
+  from {
+    background-position: -240px 0;
+  }
+  to {
+    background-position: 240px 0;
+  }
+}
+.skeleton {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--line) 0%, var(--panel-2) 45%, var(--line) 90%);
+  background-size: 480px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--line-2);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+  flex: none;
+}
+
+@keyframes dots {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+.typing-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.typing-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: dots 1.2s infinite ease-in-out;
+}
+.typing-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.pop {
+  animation: pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.page-in {
+  animation: pageIn 0.35s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .spinner,
+  .typing-dots i,
+  .pop,
+  .page-in {
     animation: none;
   }
 }
