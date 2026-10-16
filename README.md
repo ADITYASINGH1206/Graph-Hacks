@@ -1,0 +1,37 @@
+# Decision Archaeologist
+
+A Company Brain agent for the Graph Hacks hackathon (Track 3, FalkorDB).
+
+It treats a real open-source project as "the company". It ingests issues, PRs, reviews and release notes, extracts the **decisions** hidden in those threads, and stores them in FalkorDB as a graph of people, artifacts, modules and decisions. The agent answers questions by walking that graph and cites the exact source quote behind every claim.
+
+Example questions:
+- Why was X deprecated, and who decided it?
+- Who actually knows module Y?
+- What decision does this PR reverse?
+- I'm about to propose Z. Does it conflict with anything the project already decided? (Decision Guard)
+
+## Kit contents
+
+| File | Purpose |
+|---|---|
+| `CLAUDE.md` | Standing rules for every coding agent working in the repo |
+| `docs/ARCHITECTURE.md` | System design, data flow, scope cut line, hackathon-criteria mapping |
+| `docs/GRAPH_SCHEMA.md` | Node and edge model, Cypher for indexes and core queries |
+| `docs/INGESTION_AND_EXTRACTION.md` | GitHub ingest, LLM decision extraction, verification, linking, expertise |
+| `docs/AGENT_AND_TOOLS.md` | Agent loop, tool catalogue, system prompt, verifier, memory, Decision Guard |
+| `docs/API_CONTRACT.md` | REST/SSE contract so backend and frontend can be built in parallel |
+| `docs/BUILD_PLAN_AND_PROMPTS.md` | Hour-by-hour plan and copy-paste prompts P0 to P12 |
+| `docs/DEMO_AND_BLOG.md` | Demo script, eval set, blog outline, submission checklist |
+
+## How to use
+
+1. `mkdir decision-archaeologist && cd decision-archaeologist`, copy this kit in, `git init`.
+2. Start Claude Code (or any coding agent) in the repo root.
+3. Paste prompt **P0** from `docs/BUILD_PLAN_AND_PROMPTS.md`, then continue in order. P2/P3, P6 and P9 can run in parallel (see the parallelisation section).
+4. Keep `CLAUDE.md` at the root. Agents read it on every task.
+
+## Things I could not verify (check before relying on them)
+
+- The hackathon's Rules and FAQ were collapsed in the page you pasted: submission format, whether an existing codebase may be reused, whether coding assistants are allowed, whether deployment is required, and whether one project can enter several tracks. Read the Rules tab first.
+- Exact FalkorDB procedure names for graph algorithms and full-text search. The docs here give the intended calls; the agent is told to confirm them at docs.falkordb.com and fall back to Python (networkx) if a procedure is missing.
+- The default target repo is a suggestion. Pick one after skimming its issues for deprecation and revert threads.
