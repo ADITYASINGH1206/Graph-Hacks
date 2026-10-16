@@ -74,8 +74,12 @@ def search_decisions(
     elements = GraphElements()
     items: list[DecisionSearchResult] = []
 
-    clean_q = query.strip()
-    use_fulltext = bool(clean_q and clean_q != "*")
+    import re
+
+    clean_q = re.sub(r"[:\-/@\[\]()!+~^%*?\"']", " ", query).strip()
+    words = [w for w in clean_q.split() if len(w) > 1 and not w.isdigit()]
+    fulltext_expr = "|".join(words) if words else clean_q
+    use_fulltext = bool(fulltext_expr and fulltext_expr != "*")
 
     if use_fulltext:
         cypher = """
@@ -89,7 +93,7 @@ def search_decisions(
         ORDER BY score DESC LIMIT $limit
         """
         params = {
-            "q": clean_q,
+            "q": fulltext_expr,
             "module": module,
             "status": status,
             "dtype": decision_type,
@@ -113,7 +117,35 @@ def search_decisions(
             "limit": limit,
         }
 
-    res = graph.query(cypher, params=params)
+    try:
+        res = graph.query(cypher, params=params)
+        # If fulltext returned 0 results, try matching by substring
+        if use_fulltext and (not res.result_set or len(res.result_set) == 0):
+            fallback_cypher = """
+            MATCH (node:Decision)
+            OPTIONAL MATCH (node)-[:AFFECTS]->(m:Module)
+            WITH node, 1.0 AS score, collect(DISTINCT m.name) AS modules
+            WHERE ($module IS NULL OR $module IN modules)
+              AND ($status IS NULL OR node.status = $status)
+              AND ($dtype IS NULL OR node.type = $dtype)
+              AND (toLower(node.title) CONTAINS toLower($raw_q) OR toLower(node.summary) CONTAINS toLower($raw_q))
+            RETURN node, modules, score
+            ORDER BY node.decided_at DESC LIMIT $limit
+            """
+            res = graph.query(fallback_cypher, params={**params, "raw_q": query.strip()})
+    except Exception as exc:
+        logger.warning("Fulltext query failed, falling back to substring search: %s", exc)
+        fallback_cypher = """
+        MATCH (node:Decision)
+        OPTIONAL MATCH (node)-[:AFFECTS]->(m:Module)
+        WITH node, 1.0 AS score, collect(DISTINCT m.name) AS modules
+        WHERE ($module IS NULL OR $module IN modules)
+          AND ($status IS NULL OR node.status = $status)
+          AND ($dtype IS NULL OR node.type = $dtype)
+        RETURN node, modules, score
+        ORDER BY node.decided_at DESC LIMIT $limit
+        """
+        res = graph.query(fallback_cypher, params=params)
     if res.result_set:
         for row in res.result_set:
             node = row[0]
