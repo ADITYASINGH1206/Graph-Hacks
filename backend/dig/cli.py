@@ -161,6 +161,62 @@ def sync() -> None:
 
 
 @app.command()
+def ask(
+    question: str = typer.Argument(..., help="Question to ask Decision Archaeologist"),
+    repo: str | None = typer.Option(None, "--repo", help="Target repository"),
+) -> None:
+    """Ask Decision Archaeologist a question about repository choices and ownership."""
+    from dig.agent.agent import DecisionAgent
+
+    target_repo = repo or settings.target_repo
+    agent = DecisionAgent(repo=target_repo)
+
+    async def _run() -> None:
+        typer.echo(f"\nQuestion: {question}")
+        typer.echo("Thinking and querying repository decision graph...\n")
+
+        async for ev in agent.ask_stream(question):
+            if ev.event == "tool_call":
+                name = ev.data.get("name")
+                inp = ev.data.get("input")
+                typer.echo(f"  [Tool Call]   {name}({inp})")
+            elif ev.event == "tool_result":
+                name = ev.data.get("name")
+                summary = ev.data.get("summary")
+                typer.echo(f"  [Tool Result] {name} -> {summary}")
+            elif ev.event == "answer":
+                typer.echo("\n" + "=" * 50)
+                typer.echo("ANSWER:\n")
+                typer.echo(ev.data.get("markdown", ""))
+                typer.echo("\n" + "-" * 50)
+                typer.echo("CITATIONS:")
+                citations = ev.data.get("citations", [])
+                if citations:
+                    for c in citations:
+                        typer.echo(
+                            f"  [{c['n']}] \"{c['quote']}\"\n      Author: {c['author']} | URL: {c['url']}"
+                        )
+                else:
+                    typer.echo("  (No direct citations)")
+
+                typer.echo("\nVERIFICATION TRUST BADGE:")
+                v = ev.data.get("verification", {})
+                badge = (
+                    "Verified against graph"
+                    if v.get("invalid", 0) == 0
+                    else "Unverified claims detected"
+                )
+                typer.echo(
+                    f"  Status: {badge} (valid: {v.get('valid')}, invalid: {v.get('invalid')}, repaired: {v.get('repaired')})"
+                )
+                typer.echo("=" * 50 + "\n")
+            elif ev.event == "error":
+                typer.secho(f"Error: {ev.data.get('message')}", fg=typer.colors.RED)
+
+    asyncio.run(_run())
+
+
+@app.command()
 def serve(
     host: str = typer.Option("0.0.0.0", "--host", help="Server host"),
     port: int = typer.Option(8000, "--port", help="Server port"),
