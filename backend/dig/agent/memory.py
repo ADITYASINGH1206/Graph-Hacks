@@ -6,6 +6,7 @@ import uuid
 from typing import Any
 
 from dig.agent.tools import registry
+from dig.config import settings
 from dig.graph.client import get_graph
 from dig.graph.models import GraphElements
 
@@ -14,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 def get_memory_graph(user_id: str) -> Any:
     """Return the dedicated FalkorDB memory graph for a user."""
-    safe_uid = "".join(c if c.isalnum() else "_" for c in user_id)
-    return get_graph(f"mem_{safe_uid}")
+    return get_graph(settings.memory_graph_name(user_id))
 
 
 def ensure_memory_schema(graph: Any) -> None:

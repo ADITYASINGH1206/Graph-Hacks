@@ -141,7 +141,11 @@ def tool_get_decision(
     g = graph or get_graph()
     res = get_decision(g, decision_id)
     data = res.data.model_dump() if res.data else None
-    summary = f"Retrieved decision {decision_id}: {res.data.title}" if res.data else f"Decision {decision_id} not found."
+    summary = (
+        f"Retrieved decision {decision_id}: {res.data.title}"
+        if res.data
+        else f"Decision {decision_id} not found."
+    )
     return {
         "data": data,
         "graph_elements": res.graph_elements.model_dump(),
@@ -262,7 +266,11 @@ def tool_find_path(
     g = graph or get_graph()
     res = shortest_path(g, a_id=a_id, b_id=b_id)
     data = res.data.model_dump() if res.data else None
-    summary = f"Path between {a_id} and {b_id}: {res.data.length} hops." if res.data else f"No path found between {a_id} and {b_id}."
+    summary = (
+        f"Path between {a_id} and {b_id}: {res.data.length} hops."
+        if res.data
+        else f"No path found between {a_id} and {b_id}."
+    )
     return {
         "data": data,
         "graph_elements": res.graph_elements.model_dump(),
@@ -313,12 +321,14 @@ def tool_recent_changes(
             gn = node_to_graph_node(d_node)
             elements.nodes.append(gn)
             props = dict(d_node.properties)
-            items.append({
-                "id": props.get("id"),
-                "title": props.get("title"),
-                "status": props.get("status"),
-                "decided_at": props.get("decided_at"),
-            })
+            items.append(
+                {
+                    "id": props.get("id"),
+                    "title": props.get("title"),
+                    "status": props.get("status"),
+                    "decided_at": props.get("decided_at"),
+                }
+            )
 
     return {
         "data": items,

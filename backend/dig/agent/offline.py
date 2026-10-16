@@ -13,7 +13,12 @@ class OfflineModelSimulator:
         def __init__(self, parent):
             self.parent = parent
 
-        def generate_content(self, model: str, contents: list[types.Content], config: types.GenerateContentConfig | None = None) -> types.GenerateContentResponse:
+        def generate_content(
+            self,
+            model: str,
+            contents: list[types.Content],
+            config: types.GenerateContentConfig | None = None,
+        ) -> types.GenerateContentResponse:
             self.parent.step += 1
 
             # Extract last user message or function response
@@ -47,9 +52,13 @@ class OfflineModelSimulator:
                     if items:
                         first_id = items[0].get("id")
                         # Second round: trace evidence
-                        fc = types.FunctionCall(name="trace_to_source", args={"decision_id": first_id})
+                        fc = types.FunctionCall(
+                            name="trace_to_source", args={"decision_id": first_id}
+                        )
                         part = types.Part(function_call=fc)
-                        candidate = types.Candidate(content=types.Content(role="model", parts=[part]))
+                        candidate = types.Candidate(
+                            content=types.Content(role="model", parts=[part])
+                        )
                         return types.GenerateContentResponse(candidates=[candidate])
 
                 if fn_name == "trace_to_source":
@@ -58,7 +67,9 @@ class OfflineModelSimulator:
                     if "python 2" in q_lower or "py2" in q_lower:
                         text = f"Flask dropped Python 2 support in decision `dec_drop_py2` [[ev:{eid}]]."
                     elif "async" in q_lower:
-                        text = f"Flask adopted async views in decision `dec_async_views` [[ev:{eid}]]."
+                        text = (
+                            f"Flask adopted async views in decision `dec_async_views` [[ev:{eid}]]."
+                        )
                     else:
                         text = f"Flask dropped Python 3.6 support in decision `dec_drop_py36` [[ev:{eid}]]. The change was authored by @davidism."
                     part = types.Part.from_text(text=text)
@@ -110,9 +121,18 @@ class OfflineModelSimulator:
             if "central" in q_lower or "influential" in q_lower:
                 fc = types.FunctionCall(name="central_people", args={"scope": "all", "limit": 5})
             elif "who knows" in q_lower or "expert" in q_lower or "maintainer" in q_lower:
-                fc = types.FunctionCall(name="who_knows", args={"module": "flask/compat", "limit": 5})
-            elif "lineage" in q_lower or "superseded" in q_lower or "history" in q_lower and "lineage" in q_lower:
-                fc = types.FunctionCall(name="decision_lineage", args={"decision_id": "dec_drop_py36"})
+                fc = types.FunctionCall(
+                    name="who_knows", args={"module": "flask/compat", "limit": 5}
+                )
+            elif (
+                "lineage" in q_lower
+                or "superseded" in q_lower
+                or "history" in q_lower
+                and "lineage" in q_lower
+            ):
+                fc = types.FunctionCall(
+                    name="decision_lineage", args={"decision_id": "dec_drop_py36"}
+                )
             elif "impact" in q_lower:
                 target_dec = "dec_drop_py36" if "3.6" in q_lower else "dec_drop_py2"
                 fc = types.FunctionCall(name="impact_of", args={"decision_id": target_dec})

@@ -24,6 +24,10 @@ from dig.graph.models import GraphElements
 logger = logging.getLogger(__name__)
 
 
+class MissingApiKeyError(RuntimeError):
+    """Raised when no LLM key is configured and offline mode was not requested."""
+
+
 class AgentEvent(BaseModel):
     """An event emitted by the agent loop matching the SSE API contract."""
 
@@ -47,14 +51,32 @@ class DecisionAgent:
         self._custom_client = client
 
     def _get_client(self) -> Any:
+        """Return the LLM client.
+
+        A real Gemini client is used whenever a key is configured. The canned
+        ``OfflineModelSimulator`` is only used when explicitly requested with
+        ``DIG_OFFLINE=1``; a missing key is an error, never a silent downgrade to
+        scripted answers that would look like real, verified results.
+        """
         if self._custom_client:
             return self._custom_client
-        api_key = settings.gemini_api_key or ""
-        if not api_key:
+        api_key = settings.google_api_key
+        if api_key:
+            return genai.Client(api_key=api_key)
+        if settings.dig_offline:
             from dig.agent.offline import OfflineModelSimulator
 
+            logger.warning("DIG_OFFLINE=1: answering with the canned offline simulator.")
             return OfflineModelSimulator()
-        return genai.Client(api_key=api_key)
+        raise MissingApiKeyError(
+            "No Gemini API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY) in .env, "
+            "or set DIG_OFFLINE=1 to use canned demo answers from the seed graph."
+        )
+
+    @property
+    def is_offline(self) -> bool:
+        """True when answers come from the canned simulator rather than a live model."""
+        return not self._custom_client and not settings.google_api_key and settings.dig_offline
 
     def _build_tools_declaration(self) -> list[types.Tool]:
         """Convert tools from the registry into Gemini FunctionDeclaration tools."""
@@ -85,6 +107,7 @@ class DecisionAgent:
         # Check cross-session memory for relevant past findings
         try:
             from dig.agent.memory import recall_findings
+
             past_findings = recall_findings(user_id=user_id, topic=question, limit=3)
             if past_findings:
                 yield AgentEvent(event="recall", data={"findings": past_findings})
@@ -93,12 +116,13 @@ class DecisionAgent:
         except Exception as mem_err:
             logger.debug("Memory recall skipped: %s", mem_err)
 
-        # In mock or testing mode if no API key is configured and no client passed
-        client = None
         try:
             client = self._get_client()
         except Exception as e:
-            logger.warning("Could not initialize Gemini client: %s. Using mock fallback.", e)
+            logger.error("Could not initialize LLM client: %s", e)
+            yield AgentEvent(event="error", data={"message": str(e)})
+            yield AgentEvent(event="done", data={"session_id": session_id, "tool_rounds": 0})
+            return
 
         # Check if client has a generate_content or chats interface
         gemini_tools = self._build_tools_declaration()
@@ -137,13 +161,17 @@ class DecisionAgent:
             except Exception as exc:
                 logger.error("LLM call failed on round %d: %s", round_num, exc)
                 yield AgentEvent(event="error", data={"message": f"LLM generation failed: {exc}"})
-                yield AgentEvent(event="done", data={"session_id": session_id, "tool_rounds": round_num})
+                yield AgentEvent(
+                    event="done", data={"session_id": session_id, "tool_rounds": round_num}
+                )
                 return
 
             candidate = response.candidates[0] if response and response.candidates else None
             if not candidate or not candidate.content or not candidate.content.parts:
                 yield AgentEvent(event="error", data={"message": "Empty response from LLM"})
-                yield AgentEvent(event="done", data={"session_id": session_id, "tool_rounds": round_num})
+                yield AgentEvent(
+                    event="done", data={"session_id": session_id, "tool_rounds": round_num}
+                )
                 return
 
             parts = candidate.content.parts
@@ -225,7 +253,9 @@ class DecisionAgent:
             yield AgentEvent(event="token", data={"text": answer_text})
 
             # Verification turn
-            evidence_map = collect_evidence_from_tool_results(tool_results_history, graph=self.graph)
+            evidence_map = collect_evidence_from_tool_results(
+                tool_results_history, graph=self.graph
+            )
             known_ids = set(evidence_map.keys())
             check = check_citations(answer_text, known_ids)
 
@@ -282,6 +312,7 @@ class DecisionAgent:
             # Record finding to user memory
             try:
                 from dig.agent.memory import record_finding
+
                 dec_ids = [c.decision_id for c in citations if c.decision_id]
                 first_two_sentences = " ".join(final_md.split(".")[:2]).strip()
                 record_finding(
@@ -296,14 +327,20 @@ class DecisionAgent:
 
             yield AgentEvent(
                 event="done",
-                data={"session_id": session_id, "tool_rounds": round_num},
+                data={
+                    "session_id": session_id,
+                    "tool_rounds": round_num,
+                    "offline": self.is_offline,
+                },
             )
             return
 
         # Max rounds reached without text completion
         yield AgentEvent(
             event="error",
-            data={"message": f"Agent reached maximum tool rounds ({self.max_rounds}) without finishing."},
+            data={
+                "message": f"Agent reached maximum tool rounds ({self.max_rounds}) without finishing."
+            },
         )
         yield AgentEvent(
             event="done",

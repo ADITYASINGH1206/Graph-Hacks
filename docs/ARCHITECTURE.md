@@ -84,9 +84,11 @@ Bonus for Track 2 overlap: per-user memory graph (`mem_<user>`) that stores find
 ## 8. Environment variables
 ```
 GITHUB_TOKEN=
-ANTHROPIC_API_KEY=
-AGENT_MODEL=claude-sonnet-5-5
-EXTRACT_MODEL=claude-haiku-5-5
+GEMINI_API_KEY=
+AGENT_MODEL=gemini-2.5-pro
+EXTRACT_MODEL=gemini-2.5-flash
+DIG_OFFLINE=0
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 FALKORDB_HOST=localhost
 FALKORDB_PORT=6379
 TARGET_REPO=pallets/flask

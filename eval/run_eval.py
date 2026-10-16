@@ -9,6 +9,8 @@ from typing import Any
 import yaml
 from dig.agent.agent import DecisionAgent
 from dig.agent.guard import run_decision_guard
+from dig.config import settings
+from dig.graph.client import get_graph
 
 
 async def evaluate_question(item: dict[str, Any]) -> dict[str, Any]:
@@ -33,8 +35,8 @@ async def evaluate_question(item: dict[str, Any]) -> dict[str, Any]:
             "category": category,
             "question": question,
             "hit_expected": hit,
-            "citation_validity": 1.0,
-            "tool_rounds": 1,
+            "citation_validity": None,  # guard returns no [[ev:]] citations
+            "tool_rounds": None,
             "latency_ms": latency,
             "details": f"Guard flagged {len(res['conflicts'])} conflicts and {len(res['reversed_before'])} historical decisions.",
         }
@@ -91,11 +93,28 @@ async def evaluate_question(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _pct(value: float | None) -> str:
+    return "n/a" if value is None else f"{value * 100:.0f}%"
+
+
+def _graph_size() -> tuple[int, int]:
+    """Return (nodes, edges) of the evaluated graph."""
+    graph = get_graph()
+    nodes = graph.query("MATCH (n) RETURN count(n)").result_set[0][0]
+    edges = graph.query("MATCH ()-[r]->() RETURN count(r)").result_set[0][0]
+    return int(nodes), int(edges)
+
+
 async def main() -> None:
     eval_dir = os.path.dirname(os.path.abspath(__file__))
     questions_file = os.path.join(eval_dir, "questions.yaml")
     with open(questions_file) as f:
         data = yaml.safe_load(f)
+
+    # Without an API key the agent can only run in the canned offline mode. The report says so.
+    live = bool(settings.google_api_key)
+    if not live:
+        settings.dig_offline = True
 
     questions = data.get("questions", [])
     print(f"Running evaluation on {len(questions)} canonical questions...\n")
@@ -105,24 +124,44 @@ async def main() -> None:
         print(f"[{q['id']}] ({q['category']}) {q['question']}")
         res = await evaluate_question(q)
         results.append(res)
-        print(f"     -> Expected Hit: {res['hit_expected']} | Validity: {res['citation_validity']*100:.0f}% | Latency: {res['latency_ms']}ms\n")
+        print(
+            f"     -> Expected Hit: {res['hit_expected']} | Validity: {_pct(res['citation_validity'])} | Latency: {res['latency_ms']}ms\n"
+        )
 
-    # Generate Markdown Report
+    mode = (
+        f"live model (`{settings.agent_model}`)"
+        if live
+        else "OFFLINE SIMULATOR (canned replies, no LLM)"
+    )
+    nodes, edges = _graph_size()
+
     report_file = os.path.join(eval_dir, "REPORT.md")
     total = len(results)
     hits = sum(1 for r in results if r["hit_expected"])
-    avg_validity = (sum(r["citation_validity"] for r in results) / total) * 100
+    validities = [r["citation_validity"] for r in results if r["citation_validity"] is not None]
+    avg_validity = (sum(validities) / len(validities)) * 100 if validities else 0.0
     avg_latency = sum(r["latency_ms"] for r in results) / total
 
     report_content = f"""# Decision Archaeologist Evaluation Report
 
 Generated: {datetime.datetime.now(datetime.UTC).isoformat()}
-Graph Evaluated: `pallets/flask` (FalkorDB)
+Graph evaluated: `{get_graph().name}` ({nodes:,} nodes, {edges:,} edges)
+Agent mode: **{mode}**
 
-## Summary Metrics
+"""
+    if not live:
+        report_content += (
+            "> **Read this first.** No API key was set, so the agent used the offline simulator, "
+            "which returns scripted answers keyed to the seed graph. These numbers test the "
+            "plumbing (tool wiring, citation verifier, repair turn, guard queries). They say "
+            "nothing about how well a real model retrieves or explains decisions. "
+            "Re-run with `GEMINI_API_KEY` set for a real benchmark.\n\n"
+        )
+
+    report_content += f"""## Summary Metrics
 - **Total Questions Evaluated**: {total}
-- **Expected Decision Retrieval Rate**: {hits}/{total} ({hits/total*100:.1f}%)
-- **Citation Validity Rate**: {avg_validity:.1f}%
+- **Expected Decision Retrieval Rate**: {hits}/{total} ({hits / total * 100:.1f}%)
+- **Citation Validity Rate** (agent questions only): {avg_validity:.1f}%
 - **Average Latency**: {avg_latency:.1f} ms
 
 ## Detailed Breakdown
@@ -132,13 +171,14 @@ Graph Evaluated: `pallets/flask` (FalkorDB)
 """
     for r in results:
         hit_icon = "PASS" if r["hit_expected"] else "FAIL"
-        report_content += f"| `{r['id']}` | **{r['category']}** | {r['question']} | {hit_icon} | {r['citation_validity']*100:.0f}% | {r['tool_rounds']} | {r['latency_ms']} |\n"
+        rounds = "n/a" if r["tool_rounds"] is None else r["tool_rounds"]
+        report_content += (
+            f"| `{r['id']}` | **{r['category']}** | {r['question']} | {hit_icon} | "
+            f"{_pct(r['citation_validity'])} | {rounds} | {r['latency_ms']} |\n"
+        )
 
     report_content += """
-## Key Observations
-1. **Provenance Grounding**: Citation verification achieved 100% validity post-repair turn. Hallucinated and unverified IDs are intercepted and sanitized before rendering to user.
-2. **Decision Guard Performance**: Guard mode detects conflicts in <50ms with zero network calls when querying the local FalkorDB graph.
-3. **Lineage Traversal**: The `SUPERSEDES` and `REVERSES` chain reliably traces backwards across version milestones.
+Guard rows (`guard` category) run graph queries only: they emit no citations and no tool rounds, so those columns are `n/a`.
 """
 
     with open(report_file, "w") as f:

@@ -51,13 +51,16 @@ async def test_tools_cli() -> None:
     print(f"   Summary: {parsed2.get('summary')}")
     print(f"   Top central people: {parsed2.get('data')}\n")
 
-    print("Algorithm path used: NetworkX PageRank over Person-MADE-Decision & Person-KNOWS-Module subgraphs.")
+    print(
+        "Algorithm path used: NetworkX PageRank over Person-MADE-Decision & Person-KNOWS-Module subgraphs."
+    )
     print("=== MCP Server Verification Passed ===")
 
 
 def main() -> None:
     """CLI entrypoint for MCP server."""
     if "--list" in sys.argv:
+
         async def _run_list():
             tools = await list_tools_cli()
             print("Registered MCP Tools:")

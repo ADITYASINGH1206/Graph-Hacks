@@ -1,4 +1,4 @@
-"""Decision extractor using LLM (Gemini / Anthropic) with schema enforcement, retry, and disk caching."""
+"""Decision extractor using LLM (Gemini) with schema enforcement, retry, and disk caching."""
 
 import asyncio
 import hashlib

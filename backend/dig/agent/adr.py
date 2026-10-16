@@ -37,11 +37,15 @@ def tool_draft_adr(
 
     evidence_lines = []
     for ev in dec.evidence:
-        evidence_lines.append(f"> \"{ev.quote}\"\n> — [{ev.author}]({ev.url})")
+        evidence_lines.append(f'> "{ev.quote}"\n> — [{ev.author}]({ev.url})')
     evidence_str = "\n\n".join(evidence_lines) if evidence_lines else "None recorded."
 
-    affected_modules = [a["name"] for a in (impact.affected if impact else []) if a.get("label") == "Module"]
-    affected_files = [a["name"] for a in (impact.affected if impact else []) if a.get("label") == "File"]
+    affected_modules = [
+        a["name"] for a in (impact.affected if impact else []) if a.get("label") == "Module"
+    ]
+    affected_files = [
+        a["name"] for a in (impact.affected if impact else []) if a.get("label") == "File"
+    ]
 
     modules_str = ", ".join(f"`{m}`" for m in affected_modules) or "None"
     files_str = ", ".join(f"`{f}`" for f in affected_files) or "None"
@@ -55,7 +59,7 @@ def tool_draft_adr(
     adr_markdown = f"""# ADR-{dec.id}: {dec.title}
 
 ## Status
-**{dec.status.upper()}** (Decided: {dec.decided_at or 'Unknown'})
+**{dec.status.upper()}** (Decided: {dec.decided_at or "Unknown"})
 
 ## Deciders
 {people_str}

@@ -1,10 +1,20 @@
 """Pydantic API request and response models matching docs/API_CONTRACT.md."""
 
-from typing import Any
+from typing import Annotated, Any
 
 from dig.agent.verifier import Citation
 from dig.graph.models import GraphElements
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
+
+# Bounded inputs: these strings reach the LLM and per-user graph names.
+Question = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+Description = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)
+]
+PathStr = Annotated[str, StringConstraints(max_length=300)]
+UserId = Annotated[
+    str, StringConstraints(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.@:-]+$")
+]
 
 
 class HealthResponse(BaseModel):
@@ -14,21 +24,23 @@ class HealthResponse(BaseModel):
     graph: str
     counts: dict[str, int]
     last_synced: str | None = None
+    # "live" (API key set), "offline" (DIG_OFFLINE=1, canned answers) or "no_key".
+    llm_mode: str = "no_key"
 
 
 class AskRequest(BaseModel):
     """Payload for POST /ask SSE streaming query."""
 
-    question: str
-    user_id: str = "anonymous"
-    session_id: str | None = None
+    question: Question
+    user_id: UserId = "anonymous"
+    session_id: str | None = Field(default=None, max_length=64)
 
 
 class GuardRequest(BaseModel):
     """Payload for POST /guard proposal conflict checking."""
 
-    description: str
-    paths: list[str] = Field(default_factory=list)
+    description: Description
+    paths: list[PathStr] = Field(default_factory=list, max_length=50)
 
 
 class ConflictItem(BaseModel):
