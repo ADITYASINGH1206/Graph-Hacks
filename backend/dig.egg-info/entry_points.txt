@@ -1,2 +1,0 @@
-[console_scripts]
-dig = dig.cli:app
