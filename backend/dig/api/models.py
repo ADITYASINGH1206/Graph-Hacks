@@ -70,6 +70,9 @@ class GuardResponse(BaseModel):
     alignments: list[AlignmentItem] = Field(default_factory=list)
     reversed_before: list[ReversedBeforeItem] = Field(default_factory=list)
     graph: GraphElements = Field(default_factory=GraphElements)
+    # "llm" (model judged each pair), "heuristic" (built-in keyword rules, tuned to the Flask
+    # demo, used when no API key is set) or "mixed".
+    judge: str = "heuristic"
 
 
 class DecisionTimelineItem(BaseModel):

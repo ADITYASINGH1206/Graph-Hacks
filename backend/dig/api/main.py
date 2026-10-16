@@ -3,6 +3,7 @@
 import logging
 
 from dig.agent.agent import DecisionAgent
+from dig.api.insights import router as insights_router
 from dig.api.models import (
     AskRequest,
     DecisionDetailResponse,
@@ -49,6 +50,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
+
+
+app.include_router(insights_router)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -126,6 +130,7 @@ def guard_endpoint(payload: GuardRequest) -> GuardResponse:
         alignments=res.get("alignments", []),
         reversed_before=res.get("reversed_before", []),
         graph=GraphElements(**res.get("graph", {})),
+        judge=res.get("judge", "heuristic"),
     )
 
 
