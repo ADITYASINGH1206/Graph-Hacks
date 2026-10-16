@@ -220,9 +220,13 @@ def ask(
 def serve(
     host: str = typer.Option("0.0.0.0", "--host", help="Server host"),
     port: int = typer.Option(8000, "--port", help="Server port"),
+    reload: bool = typer.Option(False, "--reload", help="Enable hot reload"),
 ) -> None:
     """Start the FastAPI backend server."""
-    typer.echo(f"Starting API server on {host}:{port}...")
+    import uvicorn
+
+    typer.echo(f"Starting Decision Archaeologist API server on {host}:{port}...")
+    uvicorn.run("dig.api.main:app", host=host, port=port, reload=reload)
 
 
 if __name__ == "__main__":
