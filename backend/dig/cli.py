@@ -39,6 +39,22 @@ def ingest(
     asyncio.run(_run())
 
 
+@app.command("load-structure")
+def load_structure_cmd(
+    repo: str | None = typer.Option(None, "--repo", help="Target repository (OWNER/REPO)"),
+    batch_size: int = typer.Option(500, "--batch-size", help="Batch size for UNWIND queries"),
+) -> None:
+    """Load structural nodes and edges into FalkorDB."""
+    from dig.graph.loader import load_structure
+
+    target = repo or settings.target_repo
+    typer.echo(f"Loading structure into FalkorDB for {target}...")
+    stats = load_structure(repo=target, batch_size=batch_size)
+    typer.echo(f"Total Nodes: {stats.get('nodes', 0)}, Total Edges: {stats.get('edges', 0)}")
+    typer.echo(f"Labels: {stats.get('labels')}")
+    typer.echo(f"Edge Types: {stats.get('edge_types')}")
+
+
 @app.command()
 def extract(
     threshold: int | None = typer.Option(None, "--threshold", help="Signal threshold filter"),
