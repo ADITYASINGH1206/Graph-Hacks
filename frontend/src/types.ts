@@ -49,6 +49,8 @@ export interface HealthData {
     PullRequest: number
   }
   last_synced: string | null
+  /** "live" = real model, "offline" = canned demo answers, "no_key" = /ask will fail. */
+  llm_mode?: 'live' | 'offline' | 'no_key'
 }
 
 export interface DecisionTimelineItem {

@@ -40,13 +40,14 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Enable CORS for Vite dev server (port 5173) and local clients
+# CORS: explicit allow-list (default: the Vite dev server). Override with CORS_ORIGINS.
+# A wildcard origin must never be combined with credentials.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
 )
 
 
@@ -78,11 +79,19 @@ def health() -> HealthResponse:
     except Exception:
         pass
 
+    if settings.google_api_key:
+        llm_mode = "live"
+    elif settings.dig_offline:
+        llm_mode = "offline"
+    else:
+        llm_mode = "no_key"
+
     return HealthResponse(
         ok=True,
         graph=graph.name,
         counts=counts,
         last_synced=last_synced,
+        llm_mode=llm_mode,
     )
 
 

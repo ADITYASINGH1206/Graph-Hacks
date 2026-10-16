@@ -9,6 +9,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
+# Without an API key the warmup can only use the canned offline simulator. Opt in explicitly
+# (the agent never falls back silently) and say so.
+if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${GOOGLE_API_KEY:-}" ] \
+   && ! grep -qE '^(GEMINI|GOOGLE)_API_KEY=.+' .env 2>/dev/null; then
+  export DIG_OFFLINE=1
+  echo "NOTE: no Gemini API key found; warmup runs in OFFLINE DEMO MODE (canned answers)."
+fi
+
 # 1. Start FalkorDB container if not running
 echo "[1/4] Ensuring FalkorDB is running on port 6379..."
 docker compose up -d falkordb

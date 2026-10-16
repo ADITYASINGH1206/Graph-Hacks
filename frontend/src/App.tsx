@@ -366,6 +366,24 @@ export function App() {
           >
             {health.graph}
           </span>
+          {!useMock && health.llm_mode && health.llm_mode !== 'live' && (
+            <span
+              title={
+                health.llm_mode === 'offline'
+                  ? 'DIG_OFFLINE=1: answers are canned demo replies, not a live model.'
+                  : 'No GEMINI_API_KEY set: questions will return an error.'
+              }
+              style={{
+                backgroundColor: health.llm_mode === 'offline' ? '#78350f' : '#7f1d1d',
+                padding: '2px 8px',
+                borderRadius: 4,
+                color: '#fde68a',
+                fontSize: '11px',
+              }}
+            >
+              {health.llm_mode === 'offline' ? 'OFFLINE DEMO MODE' : 'NO API KEY'}
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

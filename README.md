@@ -107,19 +107,34 @@ python -m dig.mcp_server
 
 ---
 
-## Evaluation Benchmark (`eval/REPORT.md`)
+## Evaluation (`eval/REPORT.md`)
 
-Run the automated evaluation suite across 12 canonical questions:
+Run the 12 canonical questions (History, Ownership, Impact, Reversal, Guard):
 ```bash
 python eval/run_eval.py
 ```
 
-### Benchmark Results
-- **Questions Evaluated**: 12 (History, Ownership, Impact, Reversal, Guard)
-- **Expected Decision Retrieval Rate**: **100.0%** (12/12)
-- **Citation Validity Rate**: **100.0%**
-- **Average Query Latency**: **20.9 ms**
-- **Real Graph Size**: 4,133 nodes, 10,233 edges (`pallets/flask`)
+`eval/REPORT.md` states the **agent mode** and the **graph size** it measured, so numbers cannot be mistaken for something they are not:
+
+- **With `GEMINI_API_KEY` set** the agent calls a live model against whatever graph is loaded. This is the real benchmark: retrieval hit rate, citation validity after the repair turn, tool rounds and latency.
+- **Without a key** the runner switches to the offline simulator (scripted answers keyed to the 22-node seed graph). The report is then labelled as such. It is a regression check for tool wiring, the citation verifier, the repair turn and guard queries, not a measure of answer quality.
+
+The committed report was generated in offline mode. Re-run with a key against your full `pallets/flask` graph and commit the result before quoting benchmark numbers.
+
+---
+
+## Configuration
+
+Copy `.env.example` to `.env`.
+
+| Variable | Purpose |
+|---|---|
+| `GITHUB_TOKEN` | GitHub API access for `dig ingest` |
+| `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) | Live LLM for extraction, linking and the agent |
+| `DIG_OFFLINE=1` | Opt in to canned demo answers from the seed graph. **Off by default**: with no key and no opt-in, `/ask` returns a clear error instead of scripted answers. |
+| `CORS_ORIGINS` | Comma-separated browser origins allowed to call the API (default: the Vite dev server) |
+
+`GET /health` reports `llm_mode` (`live`, `offline` or `no_key`), and the UI shows a banner when answers are not from a live model.
 
 ---
 
@@ -142,7 +157,8 @@ curl -s http://localhost:8000/health | jq
     "Issue": 32,
     "PullRequest": 48
   },
-  "last_synced": "2026-10-16T12:00:00Z"
+  "last_synced": "2026-10-16T12:00:00Z",
+  "llm_mode": "live"
 }
 ```
 

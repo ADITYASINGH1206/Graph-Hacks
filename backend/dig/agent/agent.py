@@ -24,6 +24,10 @@ from dig.graph.models import GraphElements
 logger = logging.getLogger(__name__)
 
 
+class MissingApiKeyError(RuntimeError):
+    """Raised when no LLM key is configured and offline mode was not requested."""
+
+
 class AgentEvent(BaseModel):
     """An event emitted by the agent loop matching the SSE API contract."""
 
@@ -47,14 +51,32 @@ class DecisionAgent:
         self._custom_client = client
 
     def _get_client(self) -> Any:
+        """Return the LLM client.
+
+        A real Gemini client is used whenever a key is configured. The canned
+        ``OfflineModelSimulator`` is only used when explicitly requested with
+        ``DIG_OFFLINE=1``; a missing key is an error, never a silent downgrade to
+        scripted answers that would look like real, verified results.
+        """
         if self._custom_client:
             return self._custom_client
-        api_key = settings.gemini_api_key or ""
-        if not api_key:
+        api_key = settings.google_api_key
+        if api_key:
+            return genai.Client(api_key=api_key)
+        if settings.dig_offline:
             from dig.agent.offline import OfflineModelSimulator
 
+            logger.warning("DIG_OFFLINE=1: answering with the canned offline simulator.")
             return OfflineModelSimulator()
-        return genai.Client(api_key=api_key)
+        raise MissingApiKeyError(
+            "No Gemini API key configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY) in .env, "
+            "or set DIG_OFFLINE=1 to use canned demo answers from the seed graph."
+        )
+
+    @property
+    def is_offline(self) -> bool:
+        """True when answers come from the canned simulator rather than a live model."""
+        return not self._custom_client and not settings.google_api_key and settings.dig_offline
 
     def _build_tools_declaration(self) -> list[types.Tool]:
         """Convert tools from the registry into Gemini FunctionDeclaration tools."""
@@ -93,12 +115,13 @@ class DecisionAgent:
         except Exception as mem_err:
             logger.debug("Memory recall skipped: %s", mem_err)
 
-        # In mock or testing mode if no API key is configured and no client passed
-        client = None
         try:
             client = self._get_client()
         except Exception as e:
-            logger.warning("Could not initialize Gemini client: %s. Using mock fallback.", e)
+            logger.error("Could not initialize LLM client: %s", e)
+            yield AgentEvent(event="error", data={"message": str(e)})
+            yield AgentEvent(event="done", data={"session_id": session_id, "tool_rounds": 0})
+            return
 
         # Check if client has a generate_content or chats interface
         gemini_tools = self._build_tools_declaration()
@@ -296,7 +319,11 @@ class DecisionAgent:
 
             yield AgentEvent(
                 event="done",
-                data={"session_id": session_id, "tool_rounds": round_num},
+                data={
+                    "session_id": session_id,
+                    "tool_rounds": round_num,
+                    "offline": self.is_offline,
+                },
             )
             return
 
