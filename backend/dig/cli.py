@@ -57,10 +57,52 @@ def load_structure_cmd(
 
 @app.command()
 def extract(
-    threshold: int | None = typer.Option(None, "--threshold", help="Signal threshold filter"),
+    repo: str | None = typer.Option(None, "--repo", help="Target repository (OWNER/REPO)"),
+    threshold: int = typer.Option(2, "--threshold", help="Signal threshold filter"),
 ) -> None:
     """Extract decisions from ingested threads using LLM and verify quotes."""
-    typer.echo("Extracting decisions from threads...")
+    from dig.extract.extractor import DecisionExtractor
+    from dig.extract.signals import filter_threads
+    from dig.graph.loader import load_decisions
+    from dig.ingest.cache import load_normalized_threads
+
+    target = repo or settings.target_repo
+    threads = load_normalized_threads(target)
+    if not threads:
+        typer.echo(f"No threads found for {target}. Run dig ingest first.")
+        return
+
+    qualifying = filter_threads(threads, threshold=threshold)
+    typer.echo(
+        f"Total threads: {len(threads)}, Qualifying (threshold >= {threshold}): {len(qualifying)}"
+    )
+
+    extractor = DecisionExtractor()
+    candidate_threads = [t for t, _ in qualifying]
+
+    async def _run() -> None:
+        decisions, stats = await extractor.extract_and_verify_all(candidate_threads)
+        typer.echo(f"Threads sent: {stats['threads_sent']}")
+        typer.echo(f"Decisions extracted: {stats['decisions_extracted']}")
+        typer.echo(f"Decisions verified: {stats['decisions_verified']}")
+        typer.echo(f"Evidence kept: {stats['evidence_kept']}, dropped: {stats['evidence_dropped']}")
+
+        # Show sample verified decisions with quotes
+        if decisions:
+            typer.echo("\n--- Sample Verified Decisions ---")
+            for d in decisions[:5]:
+                quotes = [ev.get("quote") for ev in d.get("evidence", [])]
+                typer.echo(f"* [{d.get('type')}] {d.get('title')}")
+                for q in quotes:
+                    typer.echo(f'    Evidence quote: "{q}"')
+
+        # Load into FalkorDB
+        load_res = load_decisions(decisions=decisions)
+        typer.echo(
+            f"FalkorDB Decision count: {load_res['decisions']}, Evidence count: {load_res['evidence']}"
+        )
+
+    asyncio.run(_run())
 
 
 @app.command()

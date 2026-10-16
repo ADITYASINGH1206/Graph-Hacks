@@ -432,3 +432,211 @@ def load_structure(
         "labels": label_counts,
         "edge_types": edge_counts,
     }
+
+
+def load_decisions(
+    graph: Any | None = None,
+    decisions: list[dict[str, Any]] | None = None,
+    batch_size: int = 500,
+) -> dict[str, int]:
+    """Bulk load verified decisions, evidence, and relations into FalkorDB using UNWIND batches."""
+    if graph is None:
+        graph = get_graph()
+
+    ensure_schema(graph)
+
+    if decisions is None:
+        dec_path = BASE_DATA_DIR / "extracted" / "decisions.jsonl"
+        if not dec_path.exists():
+            logger.warning("No extracted decisions found at %s", dec_path)
+            return {"decisions": 0, "evidence": 0}
+        decisions = []
+        with open(dec_path, encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    decisions.append(json.loads(line))
+
+    logger.info("Loading %s decisions into FalkorDB...", len(decisions))
+
+    decision_rows: list[dict[str, Any]] = []
+    evidence_rows: list[dict[str, Any]] = []
+    concept_rows: dict[str, dict[str, Any]] = {}
+    person_rows: dict[str, dict[str, Any]] = {}
+
+    supported_by_edges: list[dict[str, Any]] = []
+    decided_in_pr_edges: list[dict[str, Any]] = []
+    decided_in_issue_edges: list[dict[str, Any]] = []
+    made_edges: list[dict[str, Any]] = []
+    affects_module_edges: list[dict[str, Any]] = []
+    affects_concept_edges: list[dict[str, Any]] = []
+
+    for dec in decisions:
+        dec_id = dec["id"]
+        dec_uid = make_uid("Decision", dec_id)
+        decision_rows.append(
+            {
+                "id": dec_id,
+                "uid": dec_uid,
+                "title": dec.get("title", ""),
+                "summary": dec.get("summary", ""),
+                "type": dec.get("type", "design"),
+                "status": dec.get("status_hint", "active"),
+                "decided_at": dec.get("decided_at_hint"),
+                "valid_from": dec.get("decided_at_hint"),
+                "confidence": float(dec.get("confidence", 1.0)),
+            }
+        )
+
+        # Evidence
+        for ev in dec.get("evidence", []):
+            ev_id = ev["id"]
+            ev_uid = make_uid("Evidence", ev_id)
+            evidence_rows.append(
+                {
+                    "id": ev_id,
+                    "uid": ev_uid,
+                    "kind": ev.get("kind", "comment"),
+                    "source_id": ev.get("block_id", ""),
+                    "quote": ev.get("quote", ""),
+                    "url": ev.get("url", ""),
+                    "author": ev.get("author", "ghost"),
+                    "ts": ev.get("ts", ""),
+                }
+            )
+            supported_by_edges.append({"dec_id": dec_id, "ev_id": ev_id})
+
+        # DECIDED_IN
+        s_kind = dec.get("source_kind")
+        s_num = dec.get("source_number")
+        if s_num:
+            if s_kind == "pr":
+                decided_in_pr_edges.append({"dec_id": dec_id, "number": int(s_num)})
+            else:
+                decided_in_issue_edges.append({"dec_id": dec_id, "number": int(s_num)})
+
+        # MADE
+        for login in dec.get("decided_by", []):
+            if login:
+                if login not in person_rows:
+                    person_rows[login] = {
+                        "login": login,
+                        "uid": make_uid("Person", login),
+                        "is_bot": False,
+                    }
+                made_edges.append({"login": login, "dec_id": dec_id, "role": "maintainer"})
+
+        # Concepts
+        for c in dec.get("concepts", []):
+            c_norm = c.lower().strip()
+            if c_norm:
+                if c_norm not in concept_rows:
+                    concept_rows[c_norm] = {"name": c_norm, "uid": make_uid("Concept", c_norm)}
+                affects_concept_edges.append({"dec_id": dec_id, "name": c_norm})
+
+        # Modules
+        for p in dec.get("affects_paths", []):
+            if p:
+                m_name = derive_module(p, depth=settings.module_depth)
+                affects_module_edges.append({"dec_id": dec_id, "name": m_name})
+
+    # Execute batch UNWIND queries
+    # 1. Decision nodes
+    for chunk in chunk_list(decision_rows, batch_size):
+        cypher = """
+        UNWIND $batch AS row
+        MERGE (d:Decision {id: row.id})
+        SET d.uid = row.uid, d.title = row.title, d.summary = row.summary,
+            d.type = row.type, d.status = row.status, d.decided_at = row.decided_at,
+            d.valid_from = row.valid_from, d.confidence = row.confidence
+        """
+        graph.query(cypher, params={"batch": chunk})
+
+    # 2. Evidence nodes
+    for chunk in chunk_list(evidence_rows, batch_size):
+        cypher = """
+        UNWIND $batch AS row
+        MERGE (e:Evidence {id: row.id})
+        SET e.uid = row.uid, e.kind = row.kind, e.source_id = row.source_id,
+            e.quote = row.quote, e.url = row.url, e.author = row.author, e.ts = row.ts
+        """
+        graph.query(cypher, params={"batch": chunk})
+
+    # 3. Concept nodes
+    for chunk in chunk_list(list(concept_rows.values()), batch_size):
+        cypher = """
+        UNWIND $batch AS row
+        MERGE (c:Concept {name: row.name})
+        SET c.uid = row.uid
+        """
+        graph.query(cypher, params={"batch": chunk})
+
+    # 4. Person nodes for deciders
+    for chunk in chunk_list(list(person_rows.values()), batch_size):
+        cypher = """
+        UNWIND $batch AS row
+        MERGE (p:Person {login: row.login})
+        SET p.uid = row.uid, p.is_bot = row.is_bot
+        """
+        graph.query(cypher, params={"batch": chunk})
+
+    # 5. SUPPORTED_BY edges
+    for chunk in chunk_list(supported_by_edges, batch_size):
+        cypher = """
+        UNWIND $batch AS row
+        MATCH (d:Decision {id: row.dec_id}), (e:Evidence {id: row.ev_id})
+        MERGE (d)-[:SUPPORTED_BY]->(e)
+        """
+        graph.query(cypher, params={"batch": chunk})
+
+    # 6. DECIDED_IN edges
+    for chunk in chunk_list(decided_in_pr_edges, batch_size):
+        cypher = """
+        UNWIND $batch AS row
+        MATCH (d:Decision {id: row.dec_id}), (pr:PullRequest {number: row.number})
+        MERGE (d)-[:DECIDED_IN]->(pr)
+        """
+        graph.query(cypher, params={"batch": chunk})
+
+    for chunk in chunk_list(decided_in_issue_edges, batch_size):
+        cypher = """
+        UNWIND $batch AS row
+        MATCH (d:Decision {id: row.dec_id}), (i:Issue {number: row.number})
+        MERGE (d)-[:DECIDED_IN]->(i)
+        """
+        graph.query(cypher, params={"batch": chunk})
+
+    # 7. MADE edges
+    for chunk in chunk_list(made_edges, batch_size):
+        cypher = """
+        UNWIND $batch AS row
+        MATCH (p:Person {login: row.login}), (d:Decision {id: row.dec_id})
+        MERGE (p)-[r:MADE]->(d)
+        SET r.role = row.role
+        """
+        graph.query(cypher, params={"batch": chunk})
+
+    # 8. AFFECTS Module edges
+    for chunk in chunk_list(affects_module_edges, batch_size):
+        cypher = """
+        UNWIND $batch AS row
+        MATCH (d:Decision {id: row.dec_id}), (m:Module {name: row.name})
+        MERGE (d)-[:AFFECTS]->(m)
+        """
+        graph.query(cypher, params={"batch": chunk})
+
+    # 9. AFFECTS Concept edges
+    for chunk in chunk_list(affects_concept_edges, batch_size):
+        cypher = """
+        UNWIND $batch AS row
+        MATCH (d:Decision {id: row.dec_id}), (c:Concept {name: row.name})
+        MERGE (d)-[:AFFECTS]->(c)
+        """
+        graph.query(cypher, params={"batch": chunk})
+
+    d_cnt = graph.query("MATCH (d:Decision) RETURN count(d)").result_set[0][0]
+    e_cnt = graph.query("MATCH (e:Evidence) RETURN count(e)").result_set[0][0]
+    logger.info(
+        "Loaded decisions into FalkorDB! Total Decisions: %s, Total Evidence: %s", d_cnt, e_cnt
+    )
+
+    return {"decisions": int(d_cnt), "evidence": int(e_cnt)}
