@@ -23,7 +23,8 @@ echo "[3/4] Computing engineer expertise and KNOWS relationships..."
 python -c '
 from dig.extract.expertise import compute_and_write_expertise
 res = compute_and_write_expertise()
-print(f"Wrote {res[\"knows_edges\"]} KNOWS expertise edges.")
+count = res.get("knows_edges", 0)
+print(f"Wrote {count} KNOWS expertise edges.")
 '
 
 # 4. Verify graph and run warmup query
