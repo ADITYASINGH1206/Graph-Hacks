@@ -127,6 +127,8 @@ async def main() -> None:
         print(
             f"     -> Expected Hit: {res['hit_expected']} | Validity: {_pct(res['citation_validity'])} | Latency: {res['latency_ms']}ms\n"
         )
+        if live:
+            await asyncio.sleep(2)
 
     mode = (
         f"live model (`{settings.agent_model}`)"

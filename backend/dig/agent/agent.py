@@ -196,6 +196,17 @@ class DecisionAgent:
                             )
                             if is_transient and attempt < 2:
                                 wait_s = 1.0 * (attempt + 1)
+                                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                                    import re
+
+                                    delay_m = re.search(r"retryDelay':\s*'(\d+)s", err_str)
+                                    retry_in_m = re.search(r"retry in (\d+(?:\.\d+)?)s", err_str)
+                                    if delay_m:
+                                        wait_s = max(wait_s, float(delay_m.group(1)) + 1.0)
+                                    elif retry_in_m:
+                                        wait_s = max(wait_s, float(retry_in_m.group(1)) + 1.0)
+                                    else:
+                                        wait_s = max(wait_s, 5.0 * (attempt + 1))
                                 logger.warning(
                                     "Transient error calling %s (attempt %d/3): %s. Retrying in %.1fs...",
                                     m,
