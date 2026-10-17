@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { HowItWorks } from '../components/HowItWorks'
+import { Logo } from '../components/Logo'
 import { useReveal } from '../lib/reveal'
 import { hrefFor } from '../lib/router'
 import type { Route } from '../lib/router'
@@ -98,7 +99,8 @@ export function Landing() {
           borderBottom: '1px solid var(--rule)',
         }}
       >
-        <a href={hrefFor('home')} style={{ fontFamily: 'var(--font-display)', fontSize: 19, color: 'var(--ink)', textDecoration: 'none' }}>
+        <a href={hrefFor('home')} style={{ fontFamily: 'var(--font-display)', fontSize: 19, color: 'var(--ink)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <Logo size={28} />
           Decision Archaeologist
         </a>
         <div style={{ display: 'flex', gap: 20, alignItems: 'center', fontSize: 14 }}>

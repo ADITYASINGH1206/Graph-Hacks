@@ -23,7 +23,7 @@ Bonus for Track 2 overlap: per-user memory graph (`mem_<user>`) that stores find
                       extract/signals.py  (cheap filter: which threads likely hold decisions)
                                   │
                                   ▼
-            extract/extractor.py (Haiku, JSON) ──► extract/verify.py (quote ⊂ source)
+            extract/extractor.py (Gemini Flash, JSON) ──► extract/verify.py (quote ⊂ source)
                                   │
                                   ▼
           graph/loader.py (MERGE nodes+edges) ◄── extract/linker.py (SUPERSEDES/REVERSES/…)
@@ -35,7 +35,7 @@ Bonus for Track 2 overlap: per-user memory graph (`mem_<user>`) that stores find
                  agent/tools.py ───────────┘
                          ▲
         ┌────────────────┴───────────────┐
-        │ mcp_server.py (same tools,     │  agent/agent.py (Sonnet tool-use loop)
+        │ mcp_server.py (same tools,     │  agent/agent.py (Gemini tool-use loop)
         │ for any MCP client)            │  agent/verifier.py (citation check)
         └────────────────────────────────┘  agent/memory.py (mem_<user> graph)
                                             agent/guard.py (Decision Guard)
@@ -48,8 +48,8 @@ Bonus for Track 2 overlap: per-user memory graph (`mem_<user>`) that stores find
 ## 4. Data flow for one question
 1. UI sends `POST /ask {question, user_id}`; server opens an SSE stream.
 2. Agent loads recall context from `mem_<user>` (top 3 related past findings).
-3. Sonnet picks tools. Each call is validated, run against FalkorDB, and returns compact JSON plus `graph_elements`. The server streams `tool_call` and `tool_result` events, so the UI highlights the path as it forms.
-4. Sonnet writes the answer with `[[ev:ID]]` citation markers.
+3. The agent model picks tools. Each call is validated, run against FalkorDB, and returns compact JSON plus `graph_elements`. The server streams `tool_call` and `tool_result` events, so the UI highlights the path as it forms.
+4. The agent model writes the answer with `[[ev:ID]]` citation markers.
 5. Verifier checks every cited id appeared in this turn's tool results; unsupported claims trigger one repair turn, then get flagged.
 6. Final event carries `answer`, `citations` (id, quote, url), and `path` (ordered nodes/edges). The server writes a `Finding` to `mem_<user>`.
 
@@ -74,7 +74,7 @@ Bonus for Track 2 overlap: per-user memory graph (`mem_<user>`) that stores find
 | Risk | Mitigation |
 |---|---|
 | GitHub rate limits | Token auth (5000/hr), disk cache, cap threads at ~1500 |
-| Extraction cost/time | Haiku, signal filter first, concurrency 8, content-hash cache |
+| Extraction cost/time | Gemini Flash, signal filter first, concurrency 8, content-hash cache |
 | LLM hallucinated quotes | Substring verification; drop unverified |
 | Sparse decision links | Candidate-pair linking from shared modules and cross-references; accept lower recall, show confidence |
 | FalkorDB procedure mismatch | Check docs; Python fallback |
