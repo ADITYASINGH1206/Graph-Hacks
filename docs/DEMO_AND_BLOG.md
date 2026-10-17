@@ -1,21 +1,18 @@
 # Demo, eval set, blog, submission
 
-## 1. Three-minute demo script
-Screen: graph canvas centre, chat left, evidence right, 1280x720, dark theme.
+## 1. Three-minute demo video script & storyboard
 
-| Time | Beat | What to show |
+| Time | On screen | Say |
 |---|---|---|
-| 0:00 | Problem | One line: "Teams lose the why behind decisions. Agents only see single records." |
-| 0:15 | The graph | FalkorDB Browser for 5 seconds: Decision, Evidence, Person, Module nodes |
-| 0:30 | History question | "Why was X deprecated and who decided it?" Watch tool chips and the path draw itself; click a citation, land on the real GitHub quote |
-| 1:05 | Lineage | "Has that decision been reversed or replaced?" Lineage chain lights up, status colours change |
-| 1:30 | Ownership | "Who actually knows module Y?" Answer explains authored/reviewed/commented and recency |
-| 1:55 | Decision Guard | Paste a realistic proposal; the guard flags a conflicting past decision with the original deciders as suggested reviewers |
-| 2:25 | Freshness and memory | Run sync (cached "new" PR), re-ask, answer changes; restart server, the agent recalls the earlier finding |
-| 2:45 | Trust | Point at the "all citations verified" badge: the model cannot cite what the graph did not return |
-| 2:55 | Close | Tracks covered, tools exposed over MCP, repo link |
-
-Pick demo questions only after inspecting the real graph; choose ones with a visible supersede/reverse chain and a clear module owner.
+| **0:00** | **Landing page hero** | Every team loses the why behind its decisions. The answer is buried in a thousand PR threads. Decision Archaeologist turns them into a graph you can ask. |
+| **0:20** | **Scroll to How it works**, click the four steps | We ingest PRs and reviews, a model proposes decisions with exact quotes, we keep a quote only if it appears word for word in the source, and the agent walks the graph to answer. |
+| **0:50** | **Ask page**: type *"Why was Python 3.6 dropped?"* | Watch the steps: it searches decisions, then traces to the source quote. The graph lights up the exact path it used. |
+| **1:15** | Click **citation [1]**, then **View on GitHub** | Every claim links to a verified quote. Click it and you land on the real thread. This is the trust badge: one citation verified against the graph. |
+| **1:35** | Ask: *"Why did Flask switch to Rust?"* | When there is no evidence it says so. It never invents a green answer. |
+| **1:50** | **Timeline tab**, then **Time Machine** | Drag the date. See what was in force on any day, and what had already been replaced. |
+| **2:10** | **PR Guard**: paste a real PR link (e.g. PR #4400 or #5000) | Before you merge, check a PR against past decisions. It shows the conflict, the quote, and who to ask. |
+| **2:30** | **Risk map** | Where is knowledge fragile? Modules with few or inactive experts glow hot. |
+| **2:45** | Back to the **Ask page graph** | The graph is the context layer. Every answer comes from FalkorDB traversals, not from model memory. Thanks. |
 
 ## 2. Eval set (`eval/questions.yaml`)
 Twelve questions, three per category, expected decision ids filled in after you inspect the data:
