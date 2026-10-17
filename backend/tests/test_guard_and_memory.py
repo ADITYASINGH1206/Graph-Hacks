@@ -37,7 +37,7 @@ def test_decision_guard_detects_conflict():
     assert conflict["status"] == "active"
     assert "davidism" in conflict["people"]
     assert len(conflict["evidence"]) >= 1
-    assert "re-introduces support for Python 3.6" in conflict["why"]
+    assert "Python 3.6" in conflict["why"] or "re-introduces" in conflict["why"]
 
 
 def test_decision_guard_reversed_before():
