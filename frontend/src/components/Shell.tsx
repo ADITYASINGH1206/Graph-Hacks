@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Logo } from './Logo'
 import { hrefFor } from '../lib/router'
 import type { Route } from '../lib/router'
 import { useSession } from '../lib/session'
@@ -57,9 +58,15 @@ export function Shell({ route, onOpenPalette, onStartTour, children }: ShellProp
               color: 'var(--text)',
               textDecoration: 'none',
               letterSpacing: '0.2px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 9,
             }}
           >
+            <Logo size={24} />
+            <span>
             Decision <span style={{ color: 'var(--accent)' }}>Archaeologist</span>
+            </span>
           </a>
           <nav aria-label="Pages" style={{ display: 'flex', gap: 4 }}>
             {NAV.map((n) => {
